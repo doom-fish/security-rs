@@ -2,7 +2,27 @@
 
 Safe Rust bindings for Apple's [Security](https://developer.apple.com/documentation/security) framework on macOS.
 
-> **Status:** v0.1.0 covers the baseline `Security.framework` surface most doom-fish crates need first: generic-password keychain access, certificate parsing, trust evaluation, current-process code-signing inspection, and cryptographically secure random bytes.
+> **Status:** v0.2.0 adopts a Swift bridge for the safe API and expands coverage across keychain, identities, certificates, policies, trust, authorization, code signing, random bytes, transforms, SecureTransport, CMS, key derivation, and key agreement.
+
+## Highlights
+
+- Swift bridge over `Security.framework` with retained opaque handles and ergonomic Rust wrappers.
+- Raw C FFI preserved behind the `raw-ffi` Cargo feature.
+- Safe modules for all primary logical areas:
+  - `keychain`
+  - `identity`
+  - `certificate`
+  - `policy`
+  - `trust`
+  - `authorization`
+  - `code`
+  - `random_bytes`
+  - `transform`
+  - `secure_transport`
+  - `cms`
+  - `key_derivation`
+  - `key_agreement`
+- Headless examples and smoke tests for every area.
 
 ## Quick start
 
@@ -10,38 +30,66 @@ Safe Rust bindings for Apple's [Security](https://developer.apple.com/documentat
 use security::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let service = format!("doom-fish-demo-{}", std::process::id());
-    let account = "demo";
+    let certificate = Certificate::from_der(&std::fs::read("tests/fixtures/test-cert.der")?)?;
+    let policy = Policy::basic_x509()?;
+    let mut trust = Trust::new(&certificate, &[policy])?;
+    trust.set_anchor_certificates(&[certificate])?;
+    trust.set_anchor_certificates_only(true)?;
+    trust.evaluate()?;
 
-    let _ = Keychain::delete(account, &service);
-    Keychain::set(account, &service, "hunter2")?;
-    assert_eq!(Keychain::get(account, &service)?, "hunter2");
-    Keychain::delete(account, &service)?;
+    let encoded = Transform::encode_base64(b"hello")?;
+    assert_eq!(Transform::decode_base64(encoded.as_bytes())?, b"hello");
 
-    let random = SecureRandom::bytes(32)?;
-    assert!(random.iter().any(|&byte| byte != 0));
-    println!("current signing info: {:?}", Code::current()?.signing_information()?);
+    let random = SecureRandom::bytes(16)?;
+    assert_eq!(random.len(), 16);
     Ok(())
 }
 ```
 
-## Highlights
+## Area overview
 
-- `Keychain` + `KeychainEntry` wrappers for `SecItemAdd`, `SecItemCopyMatching`, `SecItemUpdate`, and `SecItemDelete`
-- `Certificate::from_der`, `subject_summary`, `der_data`, and `public_key`
-- `Policy` + `Trust` wrappers for `SecTrustCreateWithCertificates`, `SecTrustSetPolicies`, and `SecTrustEvaluateWithError`
-- `Code::current().signing_information()` for bundle identifier, team identifier, entitlements, status word, and sandbox detection
-- `SecureRandom::fill` / `SecureRandom::bytes` over `SecRandomCopyBytes`
+- **`Keychain`:** generic-password CRUD and service account listing.
+- **`Identity`:** PKCS#12 import, certificate access, and private-key attribute inspection.
+- **`Certificate`:** DER/PEM loading, summaries, names, emails, serials, validity dates, and public keys.
+- **`Policy` / `Trust`:** basic X.509, SSL, revocation, custom anchors, and evaluated trust results.
+- **`Authorization`:** authorization creation and external-form round trips.
+- **`Code`:** current-process code objects, static-code inspection, designated requirements, and task entitlements.
+- **`RandomBytes`:** `SecRandomCopyBytes` wrappers.
+- **`Transform`:** base64 encode/decode using deprecated but still functional `SecTransform` APIs.
+- **`SecureTransport`:** minimal context creation, protocol bounds, and state inspection.
+- **`CMS`:** certificate-bag encode/decode.
+- **`KeyDerivation`:** PBKDF2-style symmetric-key derivation through `SecKeyDeriveFromPassword`.
+- **`KeyAgreement`:** ephemeral P-256 key generation and ECDH shared-secret derivation.
 
-## Smoke example
+## Examples
 
-Run the end-to-end smoke test with:
+Run every numbered example:
 
 ```bash
-cargo run --all-features --example 01_smoke
+for ex in examples/*.rs; do cargo run --example "$(basename "$ex" .rs)"; done
 ```
 
-It round-trips a unique generic-password keychain item, lists accounts for its service, deletes the item again, and verifies that `SecRandomCopyBytes` returns non-zero output.
+Key examples:
+
+- `01_keychain_password`
+- `05_trust_evaluate`
+- `07_code_signing_info`
+- `11_cms_cert_bag`
+- `13_key_agreement_shared_secret`
+
+## Raw FFI
+
+Enable the legacy raw C declarations when you need direct `Security.framework` symbols:
+
+```bash
+cargo test --features raw-ffi
+```
+
+The default API path stays on the Swift bridge so Rust code does not call the C-only framework surface directly.
+
+## Coverage notes
+
+See [COVERAGE.md](COVERAGE.md) for the header audit and per-area implementation / partial / skipped status.
 
 ## License
 

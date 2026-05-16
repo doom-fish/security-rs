@@ -1,0 +1,272 @@
+import Foundation
+import Security
+
+@_cdecl("security_certificate_from_der")
+public func securityCertificateFromDer(
+    _ dataPointer: UnsafeRawPointer?,
+    _ dataLength: Int,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificateData = dataFromPointer(dataPointer, length: dataLength) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "DER certificate bytes are required")
+        return nil
+    }
+
+    guard let certificate = SecCertificateCreateWithData(nil, certificateData as CFData) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "invalid DER-encoded X.509 certificate")
+        return nil
+    }
+
+    return retain(certificate)
+}
+
+@_cdecl("security_certificate_copy_der")
+public func securityCertificateCopyDer(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    return dataHandle(SecCertificateCopyData(certificate) as Data)
+}
+
+@_cdecl("security_certificate_copy_subject_summary")
+public func securityCertificateCopySubjectSummary(_ certificatePointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        return nil
+    }
+
+    return stringHandle(SecCertificateCopySubjectSummary(certificate) as String?)
+}
+
+@_cdecl("security_certificate_copy_common_name")
+public func securityCertificateCopyCommonName(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    var commonName: CFString?
+    let status = SecCertificateCopyCommonName(certificate, &commonName)
+    guard status == errSecSuccess else {
+        setStatus(statusOut, status)
+        setError(errorOut, "SecCertificateCopyCommonName failed: \(statusMessage(status))")
+        return nil
+    }
+
+    return stringHandle(commonName as String?)
+}
+
+@_cdecl("security_certificate_copy_email_addresses")
+public func securityCertificateCopyEmailAddresses(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    var emailAddresses: CFArray?
+    let status = SecCertificateCopyEmailAddresses(certificate, &emailAddresses)
+    guard status == errSecSuccess else {
+        setStatus(statusOut, status)
+        setError(errorOut, "SecCertificateCopyEmailAddresses failed: \(statusMessage(status))")
+        return nil
+    }
+
+    let values = emailAddresses as? [String] ?? []
+    return jsonHandle(values)
+}
+
+@_cdecl("security_certificate_copy_normalized_subject_sequence")
+public func securityCertificateCopyNormalizedSubjectSequence(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    return dataHandle(SecCertificateCopyNormalizedSubjectSequence(certificate) as Data?)
+}
+
+@_cdecl("security_certificate_copy_normalized_issuer_sequence")
+public func securityCertificateCopyNormalizedIssuerSequence(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    return dataHandle(SecCertificateCopyNormalizedIssuerSequence(certificate) as Data?)
+}
+
+@_cdecl("security_certificate_copy_serial_number")
+public func securityCertificateCopySerialNumber(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    var error: Unmanaged<CFError>?
+    guard let serial = SecCertificateCopySerialNumberData(certificate, &error) as Data? else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, error)
+        return nil
+    }
+
+    return dataHandle(serial)
+}
+
+@_cdecl("security_certificate_copy_not_valid_before")
+public func securityCertificateCopyNotValidBefore(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    if #available(macOS 15.0, *) {
+        if let date = SecCertificateCopyNotValidBeforeDate(certificate) as Date? {
+            return jsonHandle(date)
+        }
+        return nil
+    }
+
+    setStatus(statusOut, errSecUnimplemented)
+    setError(errorOut, "SecCertificateCopyNotValidBeforeDate requires macOS 15.0")
+    return nil
+}
+
+@_cdecl("security_certificate_copy_not_valid_after")
+public func securityCertificateCopyNotValidAfter(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    if #available(macOS 15.0, *) {
+        if let date = SecCertificateCopyNotValidAfterDate(certificate) as Date? {
+            return jsonHandle(date)
+        }
+        return nil
+    }
+
+    setStatus(statusOut, errSecUnimplemented)
+    setError(errorOut, "SecCertificateCopyNotValidAfterDate requires macOS 15.0")
+    return nil
+}
+
+@_cdecl("security_certificate_copy_public_key")
+public func securityCertificateCopyPublicKey(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    guard let key = SecCertificateCopyKey(certificate) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "SecCertificateCopyKey returned nil")
+        return nil
+    }
+
+    return retain(key)
+}
+
+@_cdecl("security_certificate_array_get_count")
+public func securityCertificateArrayGetCount(_ arrayPointer: UnsafeMutableRawPointer?) -> Int {
+    unbox(arrayPointer, as: [SecCertificate].self)?.count ?? 0
+}
+
+@_cdecl("security_certificate_array_copy_item")
+public func securityCertificateArrayCopyItem(
+    _ arrayPointer: UnsafeMutableRawPointer?,
+    _ index: Int,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificates = unbox(arrayPointer, as: [SecCertificate].self),
+          certificates.indices.contains(index)
+    else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate array index out of bounds")
+        return nil
+    }
+
+    return retain(certificates[index])
+}

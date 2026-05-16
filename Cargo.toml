@@ -1,11 +1,11 @@
 [package]
 name = "security-rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/security-rs"
 repository = "https://github.com/doom-fish/security-rs"
-description = "Safe Rust bindings for Apple's Security framework — keychain, certificates, trust, code signing, and CSPRNG on macOS"
+description = "Safe Rust bindings for Apple's Security framework — keychain, identity, certificates, trust, authorization, CMS, SecureTransport, and cryptographic primitives on macOS"
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["security", "keychain", "certificates", "macos", "apple"]
 categories = ["api-bindings", "os::macos-apis", "cryptography"]
@@ -15,11 +15,14 @@ build = "build.rs"
 include = [
     "src/**/*",
     "examples/**/*",
+    "tests/**/*",
+    "swift-bridge/**/*",
     "build.rs",
     "Cargo.toml",
     "README.md",
-    "LICENSE-*",
     "CHANGELOG.md",
+    "COVERAGE.md",
+    "LICENSE-*",
 ]
 
 [lints.rust]
@@ -35,10 +38,15 @@ crate-type = ["lib"]
 
 [features]
 default = []
+raw-ffi = []
 
 [dependencies]
 apple-cf = { version = ">=0.4.0, <0.6" }
+base64 = "0.22"
+bitflags = "2.6"
 libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -48,9 +56,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [badges]
 maintenance = { status = "actively-developed" }
-
-[[example]]
-name = "01_smoke"
 
 [profile.release]
 debug = "full"

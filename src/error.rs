@@ -4,10 +4,21 @@ use core::fmt;
 
 use apple_cf::CFError;
 
-use crate::ffi;
-
 /// Convenient result alias used throughout this crate.
 pub type Result<T, E = SecurityError> = std::result::Result<T, E>;
+
+/// Raw `OSStatus` code returned by Security.framework.
+pub type OsStatus = i32;
+
+/// Common status-code constants surfaced by the safe bridge.
+pub mod status {
+    use super::OsStatus;
+
+    pub const SUCCESS: OsStatus = 0;
+    pub const DUPLICATE_ITEM: OsStatus = -25_299;
+    pub const ITEM_NOT_FOUND: OsStatus = -25_300;
+    pub const INTERACTION_NOT_ALLOWED: OsStatus = -25_308;
+}
 
 /// Structured `OSStatus` error returned by `Security.framework`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,7 +26,7 @@ pub struct StatusError {
     /// API name that returned the status code.
     pub operation: &'static str,
     /// Raw `OSStatus` numeric code.
-    pub status: ffi::OSStatus,
+    pub status: OsStatus,
     /// Human-readable description when available.
     pub message: String,
 }
@@ -46,8 +57,6 @@ pub enum SecurityError {
     InteractionNotAllowed(String),
     /// Trust evaluation failed and Security.framework provided a reason.
     TrustEvaluationFailed(String),
-    /// A Core Foundation creation call returned a null pointer.
-    CoreFoundation(CFError),
     /// Security.framework returned an unexpected Core Foundation type.
     UnexpectedType {
         /// API name being decoded.
@@ -55,32 +64,35 @@ pub enum SecurityError {
         /// Expected Core Foundation family.
         expected: &'static str,
     },
-    /// Security.framework returned an `OSStatus` not covered by a more specific variant.
+    /// JSON serialization or deserialization failed.
+    Serialization(String),
+    /// A Core Foundation creation call returned a null pointer.
+    CoreFoundation(CFError),
+    /// Security.framework returned an unexpected `OSStatus`.
     Status(StatusError),
 }
 
 impl SecurityError {
-    /// Numeric `OSStatus`, when this error originated from one.
     #[must_use]
-    pub const fn code(&self) -> Option<ffi::OSStatus> {
+    pub const fn code(&self) -> Option<OsStatus> {
         match self {
-            Self::ItemNotFound(_) => Some(ffi::status::ITEM_NOT_FOUND),
-            Self::DuplicateItem(_) => Some(ffi::status::DUPLICATE_ITEM),
-            Self::InteractionNotAllowed(_) => Some(ffi::status::INTERACTION_NOT_ALLOWED),
+            Self::ItemNotFound(_) => Some(status::ITEM_NOT_FOUND),
+            Self::DuplicateItem(_) => Some(status::DUPLICATE_ITEM),
+            Self::InteractionNotAllowed(_) => Some(status::INTERACTION_NOT_ALLOWED),
             Self::Status(error) => Some(error.status),
             _ => None,
         }
     }
 
-    pub(crate) const fn from_status(
+    pub(crate) fn from_status(
         operation: &'static str,
-        status: ffi::OSStatus,
+        status: OsStatus,
         message: String,
     ) -> Self {
         match status {
-            ffi::status::ITEM_NOT_FOUND => Self::ItemNotFound(message),
-            ffi::status::DUPLICATE_ITEM => Self::DuplicateItem(message),
-            ffi::status::INTERACTION_NOT_ALLOWED => Self::InteractionNotAllowed(message),
+            status::ITEM_NOT_FOUND => Self::ItemNotFound(message),
+            status::DUPLICATE_ITEM => Self::DuplicateItem(message),
+            status::INTERACTION_NOT_ALLOWED => Self::InteractionNotAllowed(message),
             _ => Self::Status(StatusError {
                 operation,
                 status,
@@ -97,15 +109,18 @@ impl fmt::Display for SecurityError {
             Self::ItemNotFound(message) => write!(f, "item not found: {message}"),
             Self::DuplicateItem(message) => write!(f, "duplicate item: {message}"),
             Self::InteractionNotAllowed(message) => write!(f, "interaction not allowed: {message}"),
-            Self::TrustEvaluationFailed(message) => write!(f, "trust evaluation failed: {message}"),
-            Self::CoreFoundation(error) => write!(f, "{error}"),
+            Self::TrustEvaluationFailed(message) => {
+                write!(f, "trust evaluation failed: {message}")
+            }
             Self::UnexpectedType {
                 operation,
                 expected,
             } => write!(
                 f,
-                "{operation} returned an unexpected Core Foundation type (expected {expected})"
+                "{operation} returned an unexpected value (expected {expected})"
             ),
+            Self::Serialization(message) => write!(f, "serialization error: {message}"),
+            Self::CoreFoundation(error) => write!(f, "{error}"),
             Self::Status(error) => write!(f, "{error}"),
         }
     }

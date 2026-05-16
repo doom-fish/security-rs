@@ -1,201 +1,146 @@
-//! `SecPolicy` and `SecTrust` wrappers.
+use serde_json::Value;
 
-use apple_cf::CFError;
-
+use crate::bridge;
 use crate::certificate::Certificate;
 use crate::error::{Result, SecurityError};
-use crate::ffi;
-use crate::private::{cf_array, cf_error_description, cf_string, sec_error_message, OwnedCf};
+pub use crate::policy::Policy;
 
-/// Owned `SecPolicyRef` used to evaluate a certificate chain.
-pub struct Policy {
-    raw: ffi::SecPolicyRef,
-}
-
-impl Policy {
-    /// Create Apple's default X.509 trust policy.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if Security.framework cannot allocate the policy object.
-    pub fn basic_x509() -> Result<Self> {
-        let raw = unsafe { ffi::SecPolicyCreateBasicX509() };
-        if raw.is_null() {
-            return Err(SecurityError::CoreFoundation(CFError::new(
-                "SecPolicyCreateBasicX509",
-            )));
-        }
-        Ok(Self { raw })
-    }
-
-    /// Create an SSL policy.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the hostname contains NUL bytes or Security.framework cannot allocate the policy object.
-    pub fn ssl(server: bool, hostname: Option<&str>) -> Result<Self> {
-        let hostname = hostname.map(cf_string).transpose()?;
-        let raw = unsafe {
-            ffi::SecPolicyCreateSSL(
-                u8::from(server),
-                hostname
-                    .as_ref()
-                    .map_or(std::ptr::null(), OwnedCf::as_string),
-            )
-        };
-        if raw.is_null() {
-            return Err(SecurityError::CoreFoundation(CFError::new(
-                "SecPolicyCreateSSL",
-            )));
-        }
-        Ok(Self { raw })
-    }
-
-    /// Borrow the raw `SecPolicyRef`.
-    #[must_use]
-    pub const fn as_raw(&self) -> ffi::SecPolicyRef {
-        self.raw
-    }
-}
-
-impl Drop for Policy {
-    fn drop(&mut self) {
-        if !self.raw.is_null() {
-            unsafe { ffi::CFRelease(self.raw.cast()) };
-        }
-    }
-}
-
-impl core::fmt::Debug for Policy {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Policy").field("raw", &self.raw).finish()
-    }
-}
-
-/// Owned `SecTrustRef` created from a certificate and one or more policies.
+#[derive(Debug)]
 pub struct Trust {
-    raw: ffi::SecTrustRef,
+    handle: bridge::Handle,
 }
 
 impl Trust {
-    /// Create a trust object from one certificate and one or more policies.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if no policies were supplied or Security.framework rejects the inputs.
     pub fn new(certificate: &Certificate, policies: &[Policy]) -> Result<Self> {
-        if policies.is_empty() {
-            return Err(SecurityError::InvalidArgument(
-                "at least one trust policy is required".to_owned(),
-            ));
-        }
+        Self::from_certificates(std::slice::from_ref(certificate), policies)
+    }
 
-        let policy_input = policy_input(policies)?;
-        let mut trust = std::ptr::null();
-        let status = unsafe {
-            ffi::SecTrustCreateWithCertificates(
-                certificate.as_raw().cast(),
-                policy_input.raw,
-                &mut trust,
+    pub fn from_certificates(certificates: &[Certificate], policies: &[Policy]) -> Result<Self> {
+        let certificate_handles = certificates.iter().map(Certificate::handle).collect::<Vec<_>>();
+        let policy_handles = policies.iter().map(Policy::handle).collect::<Vec<_>>();
+        let certificate_pointers = bridge::handle_pointer_array(&certificate_handles);
+        let policy_pointers = bridge::handle_pointer_array(&policy_handles);
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_trust_create(
+                certificate_pointers.as_ptr(),
+                bridge::len_to_isize(certificate_pointers.len())?,
+                policy_pointers.as_ptr(),
+                bridge::len_to_isize(policy_pointers.len())?,
+                &mut status,
+                &mut error,
             )
         };
-        if status != ffi::status::SUCCESS {
-            return Err(SecurityError::from_status(
-                "SecTrustCreateWithCertificates",
-                status,
-                sec_error_message(status),
-            ));
-        }
-        if trust.is_null() {
-            return Err(SecurityError::CoreFoundation(CFError::new(
-                "SecTrustCreateWithCertificates",
-            )));
-        }
-        Ok(Self { raw: trust })
+        bridge::required_handle("security_trust_create", raw, status, error).map(|handle| Self {
+            handle,
+        })
     }
 
-    /// Replace the policies used by this trust object.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if no policies were supplied or Security.framework rejects the update.
     pub fn set_policies(&mut self, policies: &[Policy]) -> Result<()> {
-        if policies.is_empty() {
-            return Err(SecurityError::InvalidArgument(
-                "at least one trust policy is required".to_owned(),
-            ));
-        }
-        let policy_input = policy_input(policies)?;
-        let status = unsafe { ffi::SecTrustSetPolicies(self.raw, policy_input.raw) };
-        if status == ffi::status::SUCCESS {
-            Ok(())
-        } else {
-            Err(SecurityError::from_status(
-                "SecTrustSetPolicies",
-                status,
-                sec_error_message(status),
-            ))
-        }
+        let policy_handles = policies.iter().map(Policy::handle).collect::<Vec<_>>();
+        let pointers = bridge::handle_pointer_array(&policy_handles);
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_trust_set_policies(
+                self.handle.as_ptr(),
+                pointers.as_ptr(),
+                bridge::len_to_isize(pointers.len())?,
+                &mut error,
+            )
+        };
+        bridge::status_result("security_trust_set_policies", status, error)
     }
 
-    /// Evaluate the trust object.
-    ///
-    /// # Errors
-    ///
-    /// Returns `SecurityError::TrustEvaluationFailed` when the certificate chain does not satisfy the configured policies.
+    pub fn set_anchor_certificates(&mut self, certificates: &[Certificate]) -> Result<()> {
+        let certificate_handles = certificates.iter().map(Certificate::handle).collect::<Vec<_>>();
+        let pointers = bridge::handle_pointer_array(&certificate_handles);
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_trust_set_anchor_certificates(
+                self.handle.as_ptr(),
+                pointers.as_ptr(),
+                bridge::len_to_isize(pointers.len())?,
+                &mut error,
+            )
+        };
+        bridge::status_result("security_trust_set_anchor_certificates", status, error)
+    }
+
+    pub fn set_anchor_certificates_only(&mut self, only_anchor_certificates: bool) -> Result<()> {
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_trust_set_anchor_certificates_only(
+                self.handle.as_ptr(),
+                only_anchor_certificates,
+                &mut error,
+            )
+        };
+        bridge::status_result("security_trust_set_anchor_certificates_only", status, error)
+    }
+
+    pub fn set_network_fetch_allowed(&mut self, allowed: bool) -> Result<()> {
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_trust_set_network_fetch_allowed(self.handle.as_ptr(), allowed, &mut error)
+        };
+        bridge::status_result("security_trust_set_network_fetch_allowed", status, error)
+    }
+
     pub fn evaluate(&self) -> Result<()> {
-        let mut error = std::ptr::null();
-        let ok = unsafe { ffi::SecTrustEvaluateWithError(self.raw, &mut error) };
-        if ok != 0 {
+        let mut error = std::ptr::null_mut();
+        let trusted = unsafe { bridge::security_trust_evaluate(self.handle.as_ptr(), &mut error) };
+        if trusted {
             Ok(())
         } else {
-            Err(SecurityError::TrustEvaluationFailed(cf_error_description(
+            let message = bridge::optional_string(error)?.unwrap_or_else(|| "trust evaluation failed".to_owned());
+            Err(SecurityError::TrustEvaluationFailed(message))
+        }
+    }
+
+    pub fn result(&self) -> Result<Value> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe { bridge::security_trust_copy_result(self.handle.as_ptr(), &mut status, &mut error) };
+        bridge::required_json("security_trust_copy_result", raw, status, error)
+    }
+
+    pub fn certificate_chain(&self) -> Result<Vec<Certificate>> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_trust_copy_certificate_chain(self.handle.as_ptr(), &mut status, &mut error)
+        };
+        let array_handle = bridge::required_handle(
+            "security_trust_copy_certificate_chain",
+            raw,
+            status,
+            error,
+        )?;
+        let count = usize::try_from(unsafe {
+            bridge::security_certificate_array_get_count(array_handle.as_ptr())
+        })
+        .unwrap_or_default();
+        let mut certificates = Vec::with_capacity(count);
+        for index in 0..count {
+            let mut status = 0;
+            let mut error = std::ptr::null_mut();
+            let raw = unsafe {
+                bridge::security_certificate_array_copy_item(
+                    array_handle.as_ptr(),
+                    bridge::len_to_isize(index)?,
+                    &mut status,
+                    &mut error,
+                )
+            };
+            let handle = bridge::required_handle(
+                "security_certificate_array_copy_item",
+                raw,
+                status,
                 error,
-            )))
+            )?;
+            certificates.push(Certificate::from_handle(handle));
         }
+        Ok(certificates)
     }
-
-    /// Borrow the raw `SecTrustRef`.
-    #[must_use]
-    pub const fn as_raw(&self) -> ffi::SecTrustRef {
-        self.raw
-    }
-}
-
-impl Drop for Trust {
-    fn drop(&mut self) {
-        if !self.raw.is_null() {
-            unsafe { ffi::CFRelease(self.raw.cast()) };
-        }
-    }
-}
-
-impl core::fmt::Debug for Trust {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Trust").field("raw", &self.raw).finish()
-    }
-}
-
-struct PolicyInput {
-    raw: ffi::CFTypeRef,
-    _array: Option<OwnedCf>,
-}
-
-fn policy_input(policies: &[Policy]) -> Result<PolicyInput> {
-    if policies.len() == 1 {
-        return Ok(PolicyInput {
-            raw: policies[0].as_raw().cast(),
-            _array: None,
-        });
-    }
-
-    let policy_refs = policies
-        .iter()
-        .map(|policy| policy.as_raw().cast())
-        .collect::<Vec<_>>();
-    let array = cf_array(&policy_refs)?;
-    Ok(PolicyInput {
-        raw: array.as_ptr(),
-        _array: Some(array),
-    })
 }
