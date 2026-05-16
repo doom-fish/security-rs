@@ -1,10 +1,10 @@
 # security-rs coverage audit (vs MacOSX26.2.sdk)
 
 SDK_PUBLIC_SYMBOLS: 321
-VERIFIED: 58
-GAPS: 100
+VERIFIED: 65
+GAPS: 93
 EXEMPT: 163
-COVERAGE_PCT: 36.71%
+COVERAGE_PCT: 41.14%
 
 > **Sample scope.** Security.framework is far larger than this crate’s safe surface. To keep the audit reviewable, this file covers the full callable public surface (321 top-level functions) from 25 app-facing headers, rather than the much larger `kSec*` constant/key space. It also excludes the legacy CSSM / plug-in / admin / keychain-manager headers and does **not** count the optional `raw-ffi` feature as verified coverage.
 
@@ -24,6 +24,7 @@ COVERAGE_PCT: 36.71%
 | CMSEncoderAddSupportingCerts | function | CMSEncoder.h | Cms::encode_supporting_certificates |
 | CMSEncoderCopyEncodedContent | function | CMSEncoder.h | Cms::encode_supporting_certificates |
 | CMSEncoderCreate | function | CMSEncoder.h | Cms::encode_supporting_certificates |
+| SecAccessControlCreateWithFlags | function | SecAccessControl.h | AccessControl::create |
 | SecCopyErrorMessageString | function | SecBase.h | SecurityError / StatusError message formatting |
 | SecCertificateCopyCommonName | function | SecCertificate.h | Certificate::common_name |
 | SecCertificateCopyData | function | SecCertificate.h | Certificate::der_data |
@@ -48,14 +49,20 @@ COVERAGE_PCT: 36.71%
 | SecItemAdd | function | SecItem.h | Keychain::set, KeychainEntry::set |
 | SecItemCopyMatching | function | SecItem.h | Keychain::get, Keychain::list_accounts, KeychainEntry::get |
 | SecItemDelete | function | SecItem.h | Keychain::delete, KeychainEntry::delete |
+| SecItemExport | function | SecImportExport.h | Certificate::export_item |
+| SecItemImport | function | SecImportExport.h | Certificate::import_item, PrivateKey::import_item |
 | SecItemUpdate | function | SecItem.h | Keychain::set, KeychainEntry::set |
 | SecKeyCopyAttributes | function | SecKey.h | PublicKey::attributes, AgreementPrivateKey::attributes, AgreementPublicKey::attributes, DerivedKey::attributes, Identity::private_key_attributes |
 | SecKeyCopyKeyExchangeResult | function | SecKey.h | AgreementPrivateKey::shared_secret |
-| SecKeyCopyPublicKey | function | SecKey.h | Certificate::public_key, AgreementPrivateKey::public_key |
+| SecKeyCopyPublicKey | function | SecKey.h | Certificate::public_key, AgreementPrivateKey::public_key, PrivateKey::public_key |
 | SecKeyCreateRandomKey | function | SecKey.h | AgreementPrivateKey::generate_p256 |
+| SecKeyCreateSignature | function | SecKey.h | PrivateKey::sign |
+| SecKeyCreateWithData | function | SecKey.h | PrivateKey::from_data |
 | SecKeyIsAlgorithmSupported | function | SecKey.h | AgreementPrivateKey::is_supported |
+| SecKeyVerifySignature | function | SecKey.h | PublicKey::verify_signature |
 | SecPolicyCopyProperties | function | SecPolicy.h | Policy::properties |
 | SecPolicyCreateBasicX509 | function | SecPolicy.h | Policy::basic_x509 |
+| SecPolicyCreateWithProperties | function | SecPolicy.h | Policy::with_properties |
 | SecPolicyCreateRevocation | function | SecPolicy.h | Policy::revocation |
 | SecPolicyCreateSSL | function | SecPolicy.h | Policy::ssl |
 | SecRandomCopyBytes | function | SecRandom.h | SecureRandom::fill, SecureRandom::bytes |
@@ -111,7 +118,6 @@ COVERAGE_PCT: 36.71%
 | CMSEncoderSetHasDetachedContent | function | CMSEncoder.h | CMS signing / recipient / content-configuration APIs are not exposed. |
 | CMSEncoderSetSignerAlgorithm | function | CMSEncoder.h | CMS signing / recipient / content-configuration APIs are not exposed. |
 | CMSEncoderUpdateContent | function | CMSEncoder.h | CMS signing / recipient / content-configuration APIs are not exposed. |
-| SecAccessControlCreateWithFlags | function | SecAccessControl.h | No wrapper for modern keychain access-control flags / biometry gates. |
 | SecAccessControlGetTypeID | function | SecAccessControl.h | No public CFTypeID helper in the safe API. |
 | SecCertificateAddToKeychain | function | SecCertificate.h | Additional certificate introspection / preference APIs are not exposed. |
 | SecCertificateCopyLongDescription | function | SecCertificate.h | Additional certificate introspection / preference APIs are not exposed. |
@@ -134,17 +140,11 @@ COVERAGE_PCT: 36.71%
 | SecIdentityGetTypeID | function | SecIdentity.h | No public CFTypeID helper in the safe API. |
 | SecIdentitySetPreferred | function | SecIdentity.h | Identity preference / system-identity management is not exposed. |
 | SecIdentitySetSystemIdentity | function | SecIdentity.h | Identity preference / system-identity management is not exposed. |
-| SecItemExport | function | SecImportExport.h | No generic Security item export wrapper. |
-| SecItemImport | function | SecImportExport.h | No generic Security item import wrapper. |
 | SecKeyCopyExternalRepresentation | function | SecKey.h | Only key agreement, random-key generation, public-key extraction, and attribute inspection are exposed. |
 | SecKeyCreateDecryptedData | function | SecKey.h | No public-key decryption wrapper. |
 | SecKeyCreateEncryptedData | function | SecKey.h | No public-key encryption wrapper. |
-| SecKeyCreateSignature | function | SecKey.h | No modern signing wrapper. |
-| SecKeyCreateWithData | function | SecKey.h | No raw-key import wrapper. |
 | SecKeyGetBlockSize | function | SecKey.h | Only key agreement, random-key generation, public-key extraction, and attribute inspection are exposed. |
 | SecKeyGetTypeID | function | SecKey.h | No public CFTypeID helper in the safe API. |
-| SecKeyVerifySignature | function | SecKey.h | No modern signature-verification wrapper. |
-| SecPolicyCreateWithProperties | function | SecPolicy.h | No generic policy builder. |
 | SecPolicyGetTypeID | function | SecPolicy.h | No public CFTypeID helper in the safe API. |
 | SecRequirementCopyData | function | SecRequirement.h | Requirement parsing / serialization APIs are not exposed. |
 | SecRequirementCreateWithData | function | SecRequirement.h | Requirement parsing / serialization APIs are not exposed. |

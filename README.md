@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's [Security](https://developer.apple.com/documentation/security) framework on macOS.
 
-> **Status:** v0.2.0 adopts a Swift bridge for the safe API and expands coverage across keychain, identities, certificates, policies, trust, authorization, code signing, random bytes, transforms, SecureTransport, CMS, key derivation, and key agreement.
+> **Status:** v0.2.1 extends the Swift-bridge-backed safe API with access-control creation, Security item import/export, raw key import, modern signatures, and generic policy property builders.
 
 ## Highlights
 
@@ -12,6 +12,7 @@ Safe Rust bindings for Apple's [Security](https://developer.apple.com/documentat
   - `keychain`
   - `identity`
   - `certificate`
+  - `key`
   - `policy`
   - `trust`
   - `authorization`
@@ -22,7 +23,7 @@ Safe Rust bindings for Apple's [Security](https://developer.apple.com/documentat
   - `cms`
   - `key_derivation`
   - `key_agreement`
-- Headless examples and smoke tests for every area.
+- 14 numbered headless examples plus smoke tests across every area.
 
 ## Quick start
 
@@ -48,10 +49,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Area overview
 
-- **`Keychain`:** generic-password CRUD and service account listing.
+- **`Keychain`:** generic-password CRUD, service account listing, and access-control creation.
 - **`Identity`:** PKCS#12 import, certificate access, and private-key attribute inspection.
-- **`Certificate`:** DER/PEM loading, summaries, names, emails, serials, validity dates, and public keys.
-- **`Policy` / `Trust`:** basic X.509, SSL, revocation, custom anchors, and evaluated trust results.
+- **`Certificate`:** DER/PEM loading, Security item import/export, summaries, names, emails, serials, validity dates, and public keys.
+- **`Key`:** raw/private-key import plus modern signing and signature verification helpers.
+- **`Policy` / `Trust`:** basic X.509, SSL, revocation, generic property builders, custom anchors, and evaluated trust results.
 - **`Authorization`:** authorization creation and external-form round trips.
 - **`Code`:** current-process code objects, static-code inspection, designated requirements, and task entitlements.
 - **`RandomBytes`:** `SecRandomCopyBytes` wrappers.
@@ -76,6 +78,7 @@ Key examples:
 - `07_code_signing_info`
 - `11_cms_cert_bag`
 - `13_key_agreement_shared_secret`
+- `14_key_import_sign_verify`
 
 ## Raw FFI
 

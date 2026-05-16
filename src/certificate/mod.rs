@@ -5,6 +5,7 @@ use serde_json::Value;
 
 use crate::bridge::{self, Handle};
 use crate::error::{Result, SecurityError};
+use crate::key::{ExternalFormat, ExternalItemType, SignatureAlgorithm};
 
 #[derive(Debug)]
 pub struct PublicKey {
@@ -23,6 +24,36 @@ impl PublicKey {
             bridge::security_key_copy_attributes(self.handle.as_ptr(), &mut status, &mut error)
         };
         bridge::required_json("security_key_copy_attributes", raw, status, error)
+    }
+
+    pub fn verify_signature(
+        &self,
+        algorithm: SignatureAlgorithm,
+        signed_data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let valid = unsafe {
+            bridge::security_public_key_verify_signature(
+                self.handle.as_ptr(),
+                algorithm as u32,
+                signed_data.as_ptr().cast(),
+                bridge::len_to_isize(signed_data.len())?,
+                signature.as_ptr().cast(),
+                bridge::len_to_isize(signature.len())?,
+                &mut status,
+                &mut error,
+            )
+        };
+        if status != 0 {
+            return Err(bridge::status_error(
+                "security_public_key_verify_signature",
+                status,
+                error,
+            )?);
+        }
+        Ok(valid)
     }
 }
 
@@ -55,6 +86,47 @@ impl Certificate {
             .map(Self::from_handle)
     }
 
+    pub fn import_item(
+        data: &[u8],
+        file_name_or_extension: Option<&str>,
+        format: ExternalFormat,
+        item_type: ExternalItemType,
+    ) -> Result<Self> {
+        let file_name_or_extension = file_name_or_extension.map(bridge::cstring).transpose()?;
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_certificate_import_item(
+                data.as_ptr().cast(),
+                bridge::len_to_isize(data.len())?,
+                file_name_or_extension
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                format as u32,
+                item_type as u32,
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_handle("security_certificate_import_item", raw, status, error)
+            .map(Self::from_handle)
+    }
+
+    pub fn export_item(&self, format: ExternalFormat, pem_armour: bool) -> Result<Vec<u8>> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_certificate_export_item(
+                self.handle.as_ptr(),
+                format as u32,
+                pem_armour,
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_data("security_certificate_export_item", raw, status, error)
+    }
+
     pub fn from_pem(pem: &[u8]) -> Result<Self> {
         let pem = std::str::from_utf8(pem).map_err(|error| {
             SecurityError::InvalidArgument(format!("PEM input was not valid UTF-8: {error}"))
@@ -65,12 +137,15 @@ impl Certificate {
             .collect::<String>();
         let der = base64::engine::general_purpose::STANDARD
             .decode(base64)
-            .map_err(|error| SecurityError::InvalidArgument(format!("invalid PEM body: {error}")))?;
+            .map_err(|error| {
+                SecurityError::InvalidArgument(format!("invalid PEM body: {error}"))
+            })?;
         Self::from_der(&der)
     }
 
     pub fn subject_summary(&self) -> Result<Option<String>> {
-        let raw = unsafe { bridge::security_certificate_copy_subject_summary(self.handle.as_ptr()) };
+        let raw =
+            unsafe { bridge::security_certificate_copy_subject_summary(self.handle.as_ptr()) };
         bridge::optional_string(raw)
     }
 
@@ -78,7 +153,11 @@ impl Certificate {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_certificate_copy_common_name(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_certificate_copy_common_name(
+                self.handle.as_ptr(),
+                &mut status,
+                &mut error,
+            )
         };
         if raw.is_null() && status == 0 {
             return Ok(None);
@@ -97,7 +176,12 @@ impl Certificate {
                 &mut error,
             )
         };
-        bridge::required_json("security_certificate_copy_email_addresses", raw, status, error)
+        bridge::required_json(
+            "security_certificate_copy_email_addresses",
+            raw,
+            status,
+            error,
+        )
     }
 
     pub fn normalized_subject_sequence(&self) -> Result<Vec<u8>> {
@@ -146,7 +230,12 @@ impl Certificate {
                 &mut error,
             )
         };
-        bridge::required_data("security_certificate_copy_serial_number", raw, status, error)
+        bridge::required_data(
+            "security_certificate_copy_serial_number",
+            raw,
+            status,
+            error,
+        )
     }
 
     pub fn not_valid_before(&self) -> Result<Option<SystemTime>> {
@@ -206,7 +295,11 @@ impl Certificate {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_certificate_copy_public_key(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_certificate_copy_public_key(
+                self.handle.as_ptr(),
+                &mut status,
+                &mut error,
+            )
         };
         bridge::required_handle("security_certificate_copy_public_key", raw, status, error)
             .map(PublicKey::from_handle)
@@ -214,19 +307,22 @@ impl Certificate {
 }
 
 fn decode_date(value: Value) -> Result<SystemTime> {
-    let unix = value
-        .get("unix")
-        .and_then(Value::as_f64)
-        .ok_or_else(|| SecurityError::UnexpectedType {
-            operation: "security_certificate_copy_not_valid_date",
-            expected: "date JSON object",
-        })?;
+    let unix =
+        value
+            .get("unix")
+            .and_then(Value::as_f64)
+            .ok_or_else(|| SecurityError::UnexpectedType {
+                operation: "security_certificate_copy_not_valid_date",
+                expected: "date JSON object",
+            })?;
     let duration = Duration::from_secs_f64(unix.abs());
     if unix >= 0.0 {
         Ok(UNIX_EPOCH + duration)
     } else {
         UNIX_EPOCH.checked_sub(duration).ok_or_else(|| {
-            SecurityError::InvalidArgument("certificate date preceded UNIX_EPOCH by too much".to_owned())
+            SecurityError::InvalidArgument(
+                "certificate date preceded UNIX_EPOCH by too much".to_owned(),
+            )
         })
     }
 }

@@ -20,16 +20,17 @@
 )]
 
 pub mod authorization;
+mod bridge;
 pub mod certificate;
 pub mod cms;
 pub mod code;
 pub mod code_signing;
 pub mod error;
-mod bridge;
 #[cfg(feature = "raw-ffi")]
 #[cfg_attr(docsrs, doc(cfg(feature = "raw-ffi")))]
 pub mod ffi;
 pub mod identity;
+pub mod key;
 pub mod key_agreement;
 pub mod key_derivation;
 pub mod keychain;
@@ -46,10 +47,13 @@ pub use cms::Cms;
 pub use code::{Code, SigningInformation, SigningValue, StaticCode, Task};
 pub use error::{OsStatus, Result, SecurityError, StatusError};
 pub use identity::Identity;
+pub use key::{ExternalFormat, ExternalItemType, KeyType, PrivateKey, SignatureAlgorithm};
 pub use key_agreement::{AgreementPrivateKey, AgreementPublicKey};
 pub use key_derivation::{DerivedKey, KeyDerivation};
-pub use keychain::{Keychain, KeychainEntry};
-pub use policy::{Policy, RevocationFlags};
+pub use keychain::{
+    AccessControl, AccessControlFlags, AccessControlProtection, Keychain, KeychainEntry,
+};
+pub use policy::{Policy, PolicyIdentifier, PolicyName, PolicyProperties, RevocationFlags};
 pub use random_bytes::SecureRandom;
 pub use secure_transport::{ProtocolVersion, SecureTransportContext, SecureTransportState};
 pub use transform::Transform;
@@ -63,12 +67,21 @@ pub mod prelude {
     pub use crate::code::{Code, SigningInformation, SigningValue, StaticCode, Task};
     pub use crate::error::{OsStatus, Result, SecurityError, StatusError};
     pub use crate::identity::Identity;
+    pub use crate::key::{
+        ExternalFormat, ExternalItemType, KeyType, PrivateKey, SignatureAlgorithm,
+    };
     pub use crate::key_agreement::{AgreementPrivateKey, AgreementPublicKey};
     pub use crate::key_derivation::{DerivedKey, KeyDerivation};
-    pub use crate::keychain::{Keychain, KeychainEntry};
-    pub use crate::policy::{Policy, RevocationFlags};
+    pub use crate::keychain::{
+        AccessControl, AccessControlFlags, AccessControlProtection, Keychain, KeychainEntry,
+    };
+    pub use crate::policy::{
+        Policy, PolicyIdentifier, PolicyName, PolicyProperties, RevocationFlags,
+    };
     pub use crate::random_bytes::SecureRandom;
-    pub use crate::secure_transport::{ProtocolVersion, SecureTransportContext, SecureTransportState};
+    pub use crate::secure_transport::{
+        ProtocolVersion, SecureTransportContext, SecureTransportState,
+    };
     pub use crate::transform::Transform;
     pub use crate::trust::Trust;
 }

@@ -14,6 +14,56 @@ private func genericPasswordQuery(account: String?, service: String) -> [CFStrin
     return query
 }
 
+private func accessControlProtection(_ name: String) -> CFTypeRef? {
+    switch name {
+    case "when_unlocked":
+        return kSecAttrAccessibleWhenUnlocked
+    case "after_first_unlock":
+        return kSecAttrAccessibleAfterFirstUnlock
+    case "when_passcode_set_this_device_only":
+        return kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly
+    case "when_unlocked_this_device_only":
+        return kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    case "after_first_unlock_this_device_only":
+        return kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    default:
+        return nil
+    }
+}
+
+@_cdecl("security_access_control_create")
+public func securityAccessControlCreate(
+    _ protectionPointer: UnsafePointer<CChar>?,
+    _ flags: UInt64,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let protectionName = stringFromCString(protectionPointer),
+          let protection = accessControlProtection(protectionName)
+    else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "access-control protection is required")
+        return nil
+    }
+
+    var error: Unmanaged<CFError>?
+    guard let accessControl = SecAccessControlCreateWithFlags(
+        nil,
+        protection,
+        SecAccessControlCreateFlags(rawValue: CFOptionFlags(flags)),
+        &error
+    ) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, error)
+        return nil
+    }
+
+    return retain(accessControl)
+}
+
 @_cdecl("security_keychain_set_password")
 public func securityKeychainSetPassword(
     _ accountPointer: UnsafePointer<CChar>?,

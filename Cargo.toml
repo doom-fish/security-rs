@@ -1,6 +1,6 @@
 [package]
 name = "security-rs"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/security-rs"
@@ -16,7 +16,8 @@ include = [
     "src/**/*",
     "examples/**/*",
     "tests/**/*",
-    "swift-bridge/**/*",
+    "swift-bridge/Package.swift",
+    "swift-bridge/Sources/**/*",
     "build.rs",
     "Cargo.toml",
     "README.md",

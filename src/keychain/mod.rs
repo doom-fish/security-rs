@@ -1,5 +1,71 @@
-use crate::bridge;
+use bitflags::bitflags;
+
+use crate::bridge::{self, Handle};
 use crate::error::Result;
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct AccessControlFlags: u64 {
+        const DEFAULTS = 0;
+        const USER_PRESENCE = 1 << 0;
+        const BIOMETRY_ANY = 1 << 1;
+        const BIOMETRY_CURRENT_SET = 1 << 3;
+        const DEVICE_PASSCODE = 1 << 4;
+        const COMPANION = 1 << 5;
+        const OR = 1 << 14;
+        const AND = 1 << 15;
+        const PRIVATE_KEY_USAGE = 1 << 30;
+        const APPLICATION_PASSWORD = 1 << 31;
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AccessControlProtection {
+    WhenUnlocked,
+    AfterFirstUnlock,
+    WhenPasscodeSetThisDeviceOnly,
+    WhenUnlockedThisDeviceOnly,
+    AfterFirstUnlockThisDeviceOnly,
+}
+
+impl AccessControlProtection {
+    const fn as_bridge_name(self) -> &'static str {
+        match self {
+            Self::WhenUnlocked => "when_unlocked",
+            Self::AfterFirstUnlock => "after_first_unlock",
+            Self::WhenPasscodeSetThisDeviceOnly => "when_passcode_set_this_device_only",
+            Self::WhenUnlockedThisDeviceOnly => "when_unlocked_this_device_only",
+            Self::AfterFirstUnlockThisDeviceOnly => "after_first_unlock_this_device_only",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct AccessControl {
+    handle: Handle,
+}
+
+impl AccessControl {
+    pub fn create(protection: AccessControlProtection, flags: AccessControlFlags) -> Result<Self> {
+        let protection = bridge::cstring(protection.as_bridge_name())?;
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_access_control_create(
+                protection.as_ptr(),
+                flags.bits(),
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_handle("security_access_control_create", raw, status, error)
+            .map(|handle| Self { handle })
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.handle.as_ptr().is_null()
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeychainEntry {
@@ -80,7 +146,11 @@ impl Keychain {
         let service = bridge::cstring(service)?;
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_keychain_delete_password(account.as_ptr(), service.as_ptr(), &mut error)
+            bridge::security_keychain_delete_password(
+                account.as_ptr(),
+                service.as_ptr(),
+                &mut error,
+            )
         };
         bridge::status_result("security_keychain_delete_password", status, error)
     }

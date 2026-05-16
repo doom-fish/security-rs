@@ -44,6 +44,12 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_access_control_create(
+        protection: *const c_char,
+        flags: u64,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
 
     pub(crate) fn security_identity_import_pkcs12_first(
         data_pointer: *const c_void,
@@ -68,6 +74,22 @@ unsafe extern "C" {
     pub(crate) fn security_certificate_from_der(
         data_pointer: *const c_void,
         data_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_certificate_import_item(
+        data_pointer: *const c_void,
+        data_length: isize,
+        file_name_or_extension: *const c_char,
+        format: u32,
+        item_type: u32,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_certificate_export_item(
+        pointer: *mut c_void,
+        format: u32,
+        pem_armour: bool,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -130,6 +152,41 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_private_key_create_with_data(
+        data_pointer: *const c_void,
+        data_length: isize,
+        key_type: u32,
+        key_size_bits: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_private_key_import_item(
+        data_pointer: *const c_void,
+        data_length: isize,
+        file_name_or_extension: *const c_char,
+        format: u32,
+        item_type: u32,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_private_key_create_signature(
+        pointer: *mut c_void,
+        algorithm: u32,
+        data_pointer: *const c_void,
+        data_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_public_key_verify_signature(
+        pointer: *mut c_void,
+        algorithm: u32,
+        signed_data_pointer: *const c_void,
+        signed_data_length: isize,
+        signature_pointer: *const c_void,
+        signature_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> bool;
 
     pub(crate) fn security_policy_create_basic_x509(
         status_out: *mut OsStatus,
@@ -143,6 +200,12 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_policy_create_revocation(
         flags: u32,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_policy_create_with_properties(
+        identifier: *const c_char,
+        properties_json: *const c_char,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -470,8 +533,10 @@ fn parse_json<T: DeserializeOwned>(json: &str) -> Result<T> {
 }
 
 fn read_string(handle: &Handle) -> Result<String> {
-    let length = usize::try_from(unsafe { security_string_len(handle.as_ptr()) })
-        .map_err(|_| SecurityError::Serialization("negative string length from bridge".to_owned()))?;
+    let length =
+        usize::try_from(unsafe { security_string_len(handle.as_ptr()) }).map_err(|_| {
+            SecurityError::Serialization("negative string length from bridge".to_owned())
+        })?;
     if length == 0 {
         return Ok(String::new());
     }
@@ -489,8 +554,9 @@ fn read_string(handle: &Handle) -> Result<String> {
     })
     .map_err(|_| SecurityError::Serialization("negative string write count".to_owned()))?;
     buffer.truncate(written);
-    String::from_utf8(buffer)
-        .map_err(|error| SecurityError::Serialization(format!("bridge string was not UTF-8: {error}")))
+    String::from_utf8(buffer).map_err(|error| {
+        SecurityError::Serialization(format!("bridge string was not UTF-8: {error}"))
+    })
 }
 
 fn read_data(handle: &Handle) -> Result<Vec<u8>> {

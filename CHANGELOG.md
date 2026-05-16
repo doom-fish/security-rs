@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.1] - 2026-05-16
+
+### Added
+
+- `AccessControl`, `AccessControlFlags`, and `AccessControlProtection` over `SecAccessControlCreateWithFlags`.
+- `PrivateKey`, `KeyType`, `SignatureAlgorithm`, and `PublicKey::verify_signature` for raw key import and modern signing / verification.
+- `Certificate::import_item` / `Certificate::export_item` and `PrivateKey::import_item` for `SecItemImport` / `SecItemExport` coverage.
+- `Policy::with_properties` with typed `PolicyIdentifier`, `PolicyName`, and `PolicyProperties` builders.
+- `examples/14_key_import_sign_verify.rs`, PKCS#1 DER key fixtures, and new policy / access-control / item-import smoke tests.
+
 ## [0.2.0] - 2026-05-16
 
 ### Added

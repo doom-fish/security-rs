@@ -26,6 +26,88 @@ public func securityCertificateFromDer(
     return retain(certificate)
 }
 
+@_cdecl("security_certificate_import_item")
+public func securityCertificateImportItem(
+    _ dataPointer: UnsafeRawPointer?,
+    _ dataLength: Int,
+    _ fileNamePointer: UnsafePointer<CChar>?,
+    _ formatRawValue: UInt32,
+    _ itemTypeRawValue: UInt32,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let importedData = dataFromPointer(dataPointer, length: dataLength),
+          var inputFormat = SecExternalFormat(rawValue: formatRawValue),
+          var itemType = SecExternalItemType(rawValue: itemTypeRawValue)
+    else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "import data, format, and item type are required")
+        return nil
+    }
+
+    let fileName = stringFromCString(fileNamePointer) as CFString?
+    var items: CFArray?
+    let status = SecItemImport(
+        importedData as CFData,
+        fileName,
+        &inputFormat,
+        &itemType,
+        SecItemImportExportFlags(),
+        nil,
+        nil,
+        &items
+    )
+    guard status == errSecSuccess else {
+        setStatus(statusOut, status)
+        setError(errorOut, "SecItemImport failed: \(statusMessage(status))")
+        return nil
+    }
+
+    guard let importedItems = items as? [SecCertificate],
+          let certificate = importedItems.first
+    else {
+        setStatus(statusOut, errSecItemNotFound)
+        setError(errorOut, "SecItemImport returned no SecCertificate result")
+        return nil
+    }
+
+    return retain(certificate)
+}
+
+@_cdecl("security_certificate_export_item")
+public func securityCertificateExportItem(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ formatRawValue: UInt32,
+    _ pemArmour: Bool,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self),
+          let outputFormat = SecExternalFormat(rawValue: formatRawValue)
+    else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle and export format are required")
+        return nil
+    }
+
+    let flags = pemArmour ? SecItemImportExportFlags(rawValue: 1) : SecItemImportExportFlags()
+    var exportedData: CFData?
+    let status = SecItemExport(certificate, outputFormat, flags, nil, &exportedData)
+    guard status == errSecSuccess, let exportedData else {
+        setStatus(statusOut, status)
+        setError(errorOut, "SecItemExport failed: \(statusMessage(status))")
+        return nil
+    }
+
+    return dataHandle(exportedData as Data)
+}
+
 @_cdecl("security_certificate_copy_der")
 public func securityCertificateCopyDer(
     _ certificatePointer: UnsafeMutableRawPointer?,
