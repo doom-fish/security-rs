@@ -352,3 +352,165 @@ public func securityCertificateArrayCopyItem(
 
     return retain(certificates[index])
 }
+
+@_cdecl("security_certificate_get_type_id")
+public func securityCertificateGetTypeID() -> UInt {
+    SecCertificateGetTypeID()
+}
+
+@_cdecl("security_certificate_add_to_keychain")
+public func securityCertificateAddToKeychain(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> Int32 {
+    clearError(errorOut)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setError(errorOut, "certificate handle is required")
+        return errSecParam
+    }
+
+    let status = SecCertificateAddToKeychain(certificate, nil)
+    if status != errSecSuccess {
+        setError(errorOut, "SecCertificateAddToKeychain failed: \(statusMessage(status))")
+    }
+    return status
+}
+
+@_cdecl("security_certificate_copy_values")
+public func securityCertificateCopyValues(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ keysPointer: UnsafePointer<CChar>?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+    guard keysPointer == nil || jsonStringArray(fromCString: keysPointer) != nil else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate OID key JSON was invalid")
+        return nil
+    }
+
+    var error: Unmanaged<CFError>?
+    guard let values = SecCertificateCopyValues(
+        certificate,
+        jsonStringArray(fromCString: keysPointer) as CFArray?,
+        &error
+    ) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, error)
+        return nil
+    }
+    return jsonHandle(values)
+}
+
+@_cdecl("security_certificate_copy_long_description")
+public func securityCertificateCopyLongDescription(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    var error: Unmanaged<CFError>?
+    guard let description = SecCertificateCopyLongDescription(nil, certificate, &error) as String? else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, error)
+        return nil
+    }
+    return stringHandle(description)
+}
+
+@_cdecl("security_certificate_copy_short_description")
+public func securityCertificateCopyShortDescription(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let certificate = unbox(certificatePointer, as: SecCertificate.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate handle is required")
+        return nil
+    }
+
+    var error: Unmanaged<CFError>?
+    guard let description = SecCertificateCopyShortDescription(nil, certificate, &error) as String? else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, error)
+        return nil
+    }
+    return stringHandle(description)
+}
+
+@_cdecl("security_certificate_copy_preferred")
+public func securityCertificateCopyPreferred(
+    _ namePointer: UnsafePointer<CChar>?,
+    _ keyUsagePointer: UnsafePointer<CChar>?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let name = stringFromCString(namePointer) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate preference name is required")
+        return nil
+    }
+    guard keyUsagePointer == nil || keyUsageArray(fromCString: keyUsagePointer) != nil else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "certificate preference key usage JSON was invalid")
+        return nil
+    }
+
+    guard let certificate = SecCertificateCopyPreferred(name as CFString, keyUsageArray(fromCString: keyUsagePointer) as CFArray?) else {
+        return nil
+    }
+    return retain(certificate)
+}
+
+@_cdecl("security_certificate_set_preferred")
+public func securityCertificateSetPreferred(
+    _ certificatePointer: UnsafeMutableRawPointer?,
+    _ namePointer: UnsafePointer<CChar>?,
+    _ keyUsagePointer: UnsafePointer<CChar>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> Int32 {
+    clearError(errorOut)
+
+    guard let name = stringFromCString(namePointer) else {
+        setError(errorOut, "certificate preference name is required")
+        return errSecParam
+    }
+    guard keyUsagePointer == nil || keyUsageArray(fromCString: keyUsagePointer) != nil else {
+        setError(errorOut, "certificate preference key usage JSON was invalid")
+        return errSecParam
+    }
+
+    let status = SecCertificateSetPreferred(
+        unbox(certificatePointer, as: SecCertificate.self),
+        name as CFString,
+        keyUsageArray(fromCString: keyUsagePointer) as CFArray?
+    )
+    if status != errSecSuccess {
+        setError(errorOut, "SecCertificateSetPreferred failed: \(statusMessage(status))")
+    }
+    return status
+}

@@ -43,8 +43,13 @@ pub mod trust;
 
 pub use authorization::{Authorization, AuthorizationOptions};
 pub use certificate::{Certificate, PublicKey};
-pub use cms::Cms;
-pub use code::{Code, SigningInformation, SigningValue, StaticCode, Task};
+pub use cms::{
+    Cms, CmsCertificateChainMode, CmsDecoder, CmsDigestAlgorithm, CmsEncoder,
+    CmsSignedAttributes,
+};
+pub use code::{
+    Code, CodeSigningFlags, Requirement, SigningInformation, SigningValue, StaticCode, Task,
+};
 pub use error::{OsStatus, Result, SecurityError, StatusError};
 pub use identity::Identity;
 pub use key::{
@@ -60,14 +65,19 @@ pub use policy::{Policy, PolicyIdentifier, PolicyName, PolicyProperties, Revocat
 pub use random_bytes::SecureRandom;
 pub use secure_transport::{ProtocolVersion, SecureTransportContext, SecureTransportState};
 pub use transform::Transform;
-pub use trust::Trust;
+pub use trust::{Trust, TrustOptions, TrustResultType};
 
 /// Common imports for users of this crate.
 pub mod prelude {
     pub use crate::authorization::{Authorization, AuthorizationOptions};
     pub use crate::certificate::{Certificate, PublicKey};
-    pub use crate::cms::Cms;
-    pub use crate::code::{Code, SigningInformation, SigningValue, StaticCode, Task};
+    pub use crate::cms::{
+        Cms, CmsCertificateChainMode, CmsDecoder, CmsDigestAlgorithm, CmsEncoder,
+        CmsSignedAttributes,
+    };
+    pub use crate::code::{
+        Code, CodeSigningFlags, Requirement, SigningInformation, SigningValue, StaticCode, Task,
+    };
     pub use crate::error::{OsStatus, Result, SecurityError, StatusError};
     pub use crate::identity::Identity;
     pub use crate::key::{
@@ -87,5 +97,5 @@ pub mod prelude {
         ProtocolVersion, SecureTransportContext, SecureTransportState,
     };
     pub use crate::transform::Transform;
-    pub use crate::trust::Trust;
+    pub use crate::trust::{Trust, TrustOptions, TrustResultType};
 }

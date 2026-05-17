@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use serde_json::Value;
 
 use crate::bridge;
 use crate::error::Result;
@@ -68,5 +69,60 @@ impl Authorization {
             error,
         )
         .map(|handle| Self { handle })
+    }
+
+    pub fn copy_info(&self, tag: Option<&str>) -> Result<Value> {
+        let tag = tag.map(bridge::cstring).transpose()?;
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_authorization_copy_info(
+                self.handle.as_ptr(),
+                tag.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_json("security_authorization_copy_info", raw, status, error)
+    }
+
+    pub fn copy_rights(
+        &self,
+        rights: &[&str],
+        options: AuthorizationOptions,
+    ) -> Result<Value> {
+        let rights_json = bridge::json_cstring(&rights)?;
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_authorization_copy_rights(
+                self.handle.as_ptr(),
+                rights_json.as_ptr(),
+                options.bits(),
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_json("security_authorization_copy_rights", raw, status, error)
+    }
+
+    pub fn copy_rights_async(
+        &self,
+        rights: &[&str],
+        options: AuthorizationOptions,
+    ) -> Result<Value> {
+        let rights_json = bridge::json_cstring(&rights)?;
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_authorization_copy_rights_async(
+                self.handle.as_ptr(),
+                rights_json.as_ptr(),
+                options.bits(),
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_json("security_authorization_copy_rights_async", raw, status, error)
     }
 }

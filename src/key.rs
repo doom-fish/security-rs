@@ -141,6 +141,10 @@ impl PrivateKey {
         Self { handle }
     }
 
+    pub(crate) fn handle(&self) -> &Handle {
+        &self.handle
+    }
+
     pub fn from_data(data: &[u8], key_type: KeyType, key_size_bits: usize) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();

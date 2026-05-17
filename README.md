@@ -2,11 +2,12 @@
 
 Safe Rust bindings for Apple's [Security](https://developer.apple.com/documentation/security) framework on macOS.
 
-> **Status:** v0.2.2 adds modern `SecKey` encryption/decryption/export helpers, public CFTypeID accessors, and exhaustive raw FFI coverage for the non-deprecated macOS `SecAccessControl` / `SecItem` / `SecKey` / `SecPolicy` headers.
+> **Status:** v0.2.3 closes every remaining non-exempt gap in the audited macOS `Security.framework` surface, including advanced Authorization, CMS, Certificate, Identity, Code Signing, Requirement, Task, and Trust helpers.
 
 ## Highlights
 
 - Swift bridge over `Security.framework` with retained opaque handles and ergonomic Rust wrappers.
+- 100% coverage of the audited non-exempt macOS `Security.framework` function surface documented in [`COVERAGE_AUDIT.md`](COVERAGE_AUDIT.md).
 - Raw C FFI preserved behind the `raw-ffi` Cargo feature, now exhaustively covering the non-deprecated macOS `SecAccessControl` / `SecItem` / `SecKey` / `SecPolicy` headers.
 - Safe modules for all primary logical areas:
   - `keychain`
@@ -50,16 +51,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Area overview
 
 - **`Keychain`:** generic-password CRUD, service account listing, access-control creation, and `SecAccessControl` type IDs.
-- **`Identity`:** PKCS#12 import, certificate access, and private-key attribute inspection.
-- **`Certificate`:** DER/PEM loading, Security item import/export, summaries, names, emails, serials, validity dates, and public keys.
+- **`Identity`:** PKCS#12 import, certificate access, identity creation, preference lookup/updates, system-identity management, and private-key attribute inspection.
+- **`Certificate`:** DER/PEM loading, Security item import/export, descriptions, values, preferences, summaries, names, emails, serials, validity dates, and public keys.
 - **`Key`:** raw/private-key import, modern signing, RSA encryption/decryption, external representations, block-size inspection, and `SecKey` type IDs.
-- **`Policy` / `Trust`:** basic X.509, SSL, revocation, generic property builders, policy type IDs, custom anchors, and evaluated trust results.
-- **`Authorization`:** authorization creation and external-form round trips.
-- **`Code`:** current-process code objects, static-code inspection, designated requirements, and task entitlements.
+- **`Policy` / `Trust`:** basic X.509, SSL, revocation, generic property builders, policy type IDs, custom anchors, verify dates, exceptions, OCSP / SCT inputs, async evaluation, derived keys, and evaluated trust results.
+- **`Authorization`:** authorization creation, external-form round trips, info inspection, and synchronous / async rights acquisition.
+- **`Code`:** current-process code objects, host / guest lookup, requirements, static-code creation and validation, resource validation, memory mapping, and task entitlement inspection.
 - **`RandomBytes`:** `SecRandomCopyBytes` wrappers.
 - **`Transform`:** base64 encode/decode using deprecated but still functional `SecTransform` APIs.
 - **`SecureTransport`:** minimal context creation, protocol bounds, and state inspection.
-- **`CMS`:** certificate-bag encode/decode.
+- **`CMS`:** certificate-bag helpers plus low-level encoder / decoder access for content, signers, recipients, timestamps, detached payloads, and chain configuration.
 - **`KeyDerivation`:** PBKDF2-style symmetric-key derivation through `SecKeyDeriveFromPassword`.
 - **`KeyAgreement`:** ephemeral P-256 key generation and ECDH shared-secret derivation.
 

@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use std::rc::Rc;
 
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 use crate::error::{OsStatus, Result, SecurityError};
 
@@ -71,6 +72,42 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_identity_get_type_id() -> usize;
+    pub(crate) fn security_identity_create(
+        certificate_pointer: *mut c_void,
+        private_key_pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_identity_create_with_certificate(
+        certificate_pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_identity_copy_preferred(
+        name: *const c_char,
+        key_usage_json: *const c_char,
+        valid_issuers_json: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_identity_set_preferred(
+        identity_pointer: *mut c_void,
+        name: *const c_char,
+        key_usage_json: *const c_char,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_identity_copy_system_identity(
+        domain: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_identity_copy_actual_domain(pointer: *mut c_void) -> *mut c_void;
+    pub(crate) fn security_identity_set_system_identity(
+        domain: *const c_char,
+        identity_pointer: *mut c_void,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
 
     pub(crate) fn security_certificate_from_der(
         data_pointer: *const c_void,
@@ -147,6 +184,39 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_certificate_get_type_id() -> usize;
+    pub(crate) fn security_certificate_add_to_keychain(
+        pointer: *mut c_void,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_certificate_copy_values(
+        pointer: *mut c_void,
+        keys_json: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_certificate_copy_long_description(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_certificate_copy_short_description(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_certificate_copy_preferred(
+        name: *const c_char,
+        key_usage_json: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_certificate_set_preferred(
+        pointer: *mut c_void,
+        name: *const c_char,
+        key_usage_json: *const c_char,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
 
     pub(crate) fn security_key_get_type_id() -> usize;
     pub(crate) fn security_key_get_block_size(pointer: *mut c_void) -> isize;
@@ -284,6 +354,78 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_trust_get_type_id() -> usize;
+    pub(crate) fn security_trust_copy_policies(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_trust_get_network_fetch_allowed(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> bool;
+    pub(crate) fn security_trust_copy_custom_anchor_certificates(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_trust_set_verify_date(
+        pointer: *mut c_void,
+        unix_seconds: f64,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_trust_get_verify_time(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_trust_evaluate_async(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> bool;
+    pub(crate) fn security_trust_get_trust_result(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> u32;
+    pub(crate) fn security_trust_copy_key(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_trust_get_certificate_count(pointer: *mut c_void) -> isize;
+    pub(crate) fn security_trust_copy_exceptions(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_trust_set_exceptions(
+        pointer: *mut c_void,
+        data_pointer: *const c_void,
+        data_length: isize,
+        error_out: *mut *mut c_void,
+    ) -> bool;
+    pub(crate) fn security_trust_set_ocsp_response(
+        pointer: *mut c_void,
+        responses_json: *const c_char,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_trust_set_signed_certificate_timestamps(
+        pointer: *mut c_void,
+        timestamps_json: *const c_char,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_trust_set_options(
+        pointer: *mut c_void,
+        options: u32,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_trust_copy_anchor_certificates(
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
 
     pub(crate) fn security_authorization_create(
         flags: u32,
@@ -298,6 +440,26 @@ unsafe extern "C" {
     pub(crate) fn security_authorization_create_from_external_form(
         data_pointer: *const c_void,
         data_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_authorization_copy_info(
+        pointer: *mut c_void,
+        tag: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_authorization_copy_rights(
+        pointer: *mut c_void,
+        rights_json: *const c_char,
+        flags: u32,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_authorization_copy_rights_async(
+        pointer: *mut c_void,
+        rights_json: *const c_char,
+        flags: u32,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -345,6 +507,100 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_code_get_type_id() -> usize;
+    pub(crate) fn security_static_code_get_type_id() -> usize;
+    pub(crate) fn security_requirement_get_type_id() -> usize;
+    pub(crate) fn security_task_get_type_id() -> usize;
+    pub(crate) fn security_requirement_create_with_data(
+        data_pointer: *const c_void,
+        data_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_requirement_create_with_string(
+        text: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_requirement_create_with_string_and_errors(
+        text: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_requirement_copy_data(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_requirement_copy_string(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_static_code_create_with_path(
+        path: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_static_code_create_with_path_and_attributes(
+        path: *const c_char,
+        attributes_json: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_static_code_check_validity_with_errors(
+        pointer: *mut c_void,
+        flags: u32,
+        requirement_pointer: *mut c_void,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_static_code_check_static_validity(
+        pointer: *mut c_void,
+        flags: u32,
+        requirement_pointer: *mut c_void,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_static_code_check_static_validity_with_errors(
+        pointer: *mut c_void,
+        flags: u32,
+        requirement_pointer: *mut c_void,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_code_copy_host(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_code_copy_guest_with_attributes(
+        host_pointer: *mut c_void,
+        attributes_json: *const c_char,
+        flags: u32,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_static_code_validate_file_resource(
+        pointer: *mut c_void,
+        relative_path: *const c_char,
+        data_pointer: *const c_void,
+        data_length: isize,
+        flags: u32,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_static_code_map_memory(
+        pointer: *mut c_void,
+        flags: u32,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_task_create_from_current_audit_token(
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_task_copy_values_for_entitlements(
+        pointer: *mut c_void,
+        entitlements_json: *const c_char,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
 
     pub(crate) fn security_random_fill(
         buffer: *mut c_void,
@@ -389,15 +645,215 @@ unsafe extern "C" {
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
 
-    pub(crate) fn security_cms_encode_certificates(
-        certificate_pointers: *const *mut c_void,
-        certificate_count: isize,
-        status_out: *mut OsStatus,
-        error_out: *mut *mut c_void,
-    ) -> *mut c_void;
     pub(crate) fn security_cms_decode_all_certificates(
         data_pointer: *const c_void,
         data_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_get_type_id() -> usize;
+    pub(crate) fn security_cms_decoder_create(
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_update_message(
+        pointer: *mut c_void,
+        data_pointer: *const c_void,
+        data_length: isize,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_decoder_finalize_message(
+        pointer: *mut c_void,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_decoder_set_detached_content(
+        pointer: *mut c_void,
+        data_pointer: *const c_void,
+        data_length: isize,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_decoder_copy_detached_content(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_get_num_signers(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> isize;
+    pub(crate) fn security_cms_decoder_copy_signer_status(
+        pointer: *mut c_void,
+        signer_index: isize,
+        policy_pointer: *mut c_void,
+        evaluate_sec_trust: bool,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_copy_signer_email_address(
+        pointer: *mut c_void,
+        signer_index: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_copy_signer_cert(
+        pointer: *mut c_void,
+        signer_index: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_is_content_encrypted(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> bool;
+    pub(crate) fn security_cms_decoder_copy_encapsulated_content_type(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_copy_content(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_copy_signer_signing_time(
+        pointer: *mut c_void,
+        signer_index: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_copy_signer_timestamp(
+        pointer: *mut c_void,
+        signer_index: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_copy_signer_timestamp_with_policy(
+        pointer: *mut c_void,
+        policy_pointer: *mut c_void,
+        signer_index: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_copy_signer_timestamp_certificates(
+        pointer: *mut c_void,
+        signer_index: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encoder_get_type_id() -> usize;
+    pub(crate) fn security_cms_encoder_create(
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encoder_set_signer_algorithm(
+        pointer: *mut c_void,
+        algorithm: *const c_char,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_add_signers(
+        pointer: *mut c_void,
+        identity_pointers: *const *mut c_void,
+        identity_count: isize,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_copy_signers(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encoder_add_recipients(
+        pointer: *mut c_void,
+        certificate_pointers: *const *mut c_void,
+        certificate_count: isize,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_copy_recipients(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encoder_set_has_detached_content(
+        pointer: *mut c_void,
+        detached_content: bool,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_get_has_detached_content(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> bool;
+    pub(crate) fn security_cms_encoder_set_encapsulated_content_type_oid(
+        pointer: *mut c_void,
+        oid: *const c_char,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_copy_encapsulated_content_type(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encoder_add_supporting_certs(
+        pointer: *mut c_void,
+        certificate_pointers: *const *mut c_void,
+        certificate_count: isize,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_copy_supporting_certs(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encoder_add_signed_attributes(
+        pointer: *mut c_void,
+        signed_attributes: u32,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_set_certificate_chain_mode(
+        pointer: *mut c_void,
+        chain_mode: u32,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_get_certificate_chain_mode(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> u32;
+    pub(crate) fn security_cms_encoder_update_content(
+        pointer: *mut c_void,
+        data_pointer: *const c_void,
+        data_length: isize,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_cms_encoder_copy_encoded_content(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encode_content(
+        identity_pointers: *const *mut c_void,
+        identity_count: isize,
+        certificate_pointers: *const *mut c_void,
+        certificate_count: isize,
+        econtent_type_oid: *const c_char,
+        detached_content: bool,
+        signed_attributes: u32,
+        data_pointer: *const c_void,
+        data_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encoder_copy_signer_timestamp(
+        pointer: *mut c_void,
+        signer_index: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_encoder_copy_signer_timestamp_with_policy(
+        pointer: *mut c_void,
+        policy_pointer: *mut c_void,
+        signer_index: isize,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -466,6 +922,12 @@ pub(crate) fn cstring(value: &str) -> Result<CString> {
     })
 }
 
+pub(crate) fn json_cstring<T: Serialize>(value: &T) -> Result<CString> {
+    let json = serde_json::to_string(value)
+        .map_err(|error| SecurityError::Serialization(format!("bridge JSON failed: {error}")))?;
+    cstring(&json)
+}
+
 pub(crate) fn len_to_isize(length: usize) -> Result<isize> {
     isize::try_from(length)
         .map_err(|_| SecurityError::InvalidArgument("input exceeds bridge size limits".to_owned()))
@@ -476,6 +938,17 @@ pub(crate) fn optional_string(raw: *mut c_void) -> Result<Option<String>> {
         return Ok(None);
     };
     read_string(&handle).map(Some)
+}
+
+pub(crate) fn optional_data(raw: *mut c_void) -> Result<Option<Vec<u8>>> {
+    let Some(handle) = Handle::from_raw(raw) else {
+        return Ok(None);
+    };
+    read_data(&handle).map(Some)
+}
+
+pub(crate) fn optional_json<T: DeserializeOwned>(raw: *mut c_void) -> Result<Option<T>> {
+    optional_string(raw)?.map_or(Ok(None), |json| parse_json(&json).map(Some))
 }
 
 pub(crate) fn required_string(

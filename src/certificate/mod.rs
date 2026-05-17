@@ -91,6 +91,10 @@ impl Certificate {
         &self.handle
     }
 
+    pub fn type_id() -> usize {
+        unsafe { bridge::security_certificate_get_type_id() }
+    }
+
     pub fn from_der(der: &[u8]) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -323,6 +327,102 @@ impl Certificate {
         };
         bridge::required_handle("security_certificate_copy_public_key", raw, status, error)
             .map(PublicKey::from_handle)
+    }
+
+    pub fn add_to_keychain(&self) -> Result<()> {
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_certificate_add_to_keychain(self.handle.as_ptr(), &mut error)
+        };
+        bridge::status_result("security_certificate_add_to_keychain", status, error)
+    }
+
+    pub fn values(&self, keys: &[&str]) -> Result<Value> {
+        let keys = (!keys.is_empty())
+            .then(|| bridge::json_cstring(&keys))
+            .transpose()?;
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_certificate_copy_values(
+                self.handle.as_ptr(),
+                keys.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_json("security_certificate_copy_values", raw, status, error)
+    }
+
+    pub fn long_description(&self) -> Result<String> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_certificate_copy_long_description(
+                self.handle.as_ptr(),
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_string("security_certificate_copy_long_description", raw, status, error)
+    }
+
+    pub fn short_description(&self) -> Result<String> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_certificate_copy_short_description(
+                self.handle.as_ptr(),
+                &mut status,
+                &mut error,
+            )
+        };
+        bridge::required_string("security_certificate_copy_short_description", raw, status, error)
+    }
+
+    pub fn preferred(name: &str, key_usage: &[&str]) -> Result<Option<Self>> {
+        let name = bridge::cstring(name)?;
+        let key_usage = (!key_usage.is_empty())
+            .then(|| bridge::json_cstring(&key_usage))
+            .transpose()?;
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_certificate_copy_preferred(
+                name.as_ptr(),
+                key_usage.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                &mut status,
+                &mut error,
+            )
+        };
+        if raw.is_null() && status == 0 {
+            Ok(None)
+        } else {
+            bridge::required_handle("security_certificate_copy_preferred", raw, status, error)
+                .map(Self::from_handle)
+                .map(Some)
+        }
+    }
+
+    pub fn set_preferred(
+        certificate: Option<&Self>,
+        name: &str,
+        key_usage: &[&str],
+    ) -> Result<()> {
+        let name = bridge::cstring(name)?;
+        let key_usage = (!key_usage.is_empty())
+            .then(|| bridge::json_cstring(&key_usage))
+            .transpose()?;
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_certificate_set_preferred(
+                certificate.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
+                name.as_ptr(),
+                key_usage.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                &mut error,
+            )
+        };
+        bridge::status_result("security_certificate_set_preferred", status, error)
     }
 }
 

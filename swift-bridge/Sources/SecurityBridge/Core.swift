@@ -95,6 +95,70 @@ func dataFromPointer(_ bytes: UnsafeRawPointer?, length: Int) -> Data? {
     return Data(bytes: bytes, count: length)
 }
 
+func jsonObject(fromCString pointer: UnsafePointer<CChar>?) -> Any? {
+    guard let json = stringFromCString(pointer),
+          let data = json.data(using: .utf8)
+    else {
+        return nil
+    }
+
+    return try? JSONSerialization.jsonObject(with: data)
+}
+
+func jsonStringArray(fromCString pointer: UnsafePointer<CChar>?) -> [String]? {
+    jsonObject(fromCString: pointer) as? [String]
+}
+
+func jsonData(fromJSONObject object: Any?) -> Data? {
+    switch object {
+    case let data as Data:
+        return data
+    case let values as [UInt8]:
+        return Data(values)
+    case let values as [NSNumber]:
+        return Data(values.map(\.uint8Value))
+    case let base64 as String:
+        return Data(base64Encoded: base64)
+    default:
+        return nil
+    }
+}
+
+func jsonDataArray(fromCString pointer: UnsafePointer<CChar>?) -> [Data]? {
+    guard let values = jsonObject(fromCString: pointer) as? [Any] else {
+        return nil
+    }
+    return values.compactMap(jsonData(fromJSONObject:))
+}
+
+func keyUsageArray(fromCString pointer: UnsafePointer<CChar>?) -> [CFString]? {
+    guard let keyUsageNames = jsonStringArray(fromCString: pointer) else {
+        return nil
+    }
+
+    let usages = keyUsageNames.compactMap { keyUsageName -> CFString? in
+        switch keyUsageName {
+        case "can_encrypt":
+            return kSecAttrCanEncrypt
+        case "can_decrypt":
+            return kSecAttrCanDecrypt
+        case "can_derive":
+            return kSecAttrCanDerive
+        case "can_sign":
+            return kSecAttrCanSign
+        case "can_verify":
+            return kSecAttrCanVerify
+        case "can_wrap":
+            return kSecAttrCanWrap
+        case "can_unwrap":
+            return kSecAttrCanUnwrap
+        default:
+            return nil
+        }
+    }
+    return usages.count == keyUsageNames.count ? usages : nil
+}
+
 func handleArray<T>(_ pointer: UnsafePointer<UnsafeMutableRawPointer?>?, count: Int, as type: T.Type) -> [T] {
     guard let pointer, count > 0 else {
         return []
@@ -169,6 +233,29 @@ func jsonValue(_ value: Any) -> Any {
     case let value as SecKey:
         return [
             "_type": "key",
+            "description": String(describing: value),
+        ]
+    case let value as SecPolicy:
+        if let properties = SecPolicyCopyProperties(value) {
+            return jsonValue(properties)
+        }
+        return [
+            "_type": "policy",
+            "description": String(describing: value),
+        ]
+    case let value as SecIdentity:
+        var certificate: SecCertificate?
+        if SecIdentityCopyCertificate(value, &certificate) == errSecSuccess,
+           let certificate
+        {
+            let summary = SecCertificateCopySubjectSummary(certificate) as String? ?? "identity"
+            return [
+                "_type": "identity",
+                "subjectSummary": summary,
+            ]
+        }
+        return [
+            "_type": "identity",
             "description": String(describing: value),
         ]
     default:

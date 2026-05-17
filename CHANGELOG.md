@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3] - 2026-05-17
+
+### Added
+
+- Exhaustive safe-wrapper closure for the remaining non-exempt audited `Security.framework` surface in `Authorization.h`, `CMSDecoder.h`, `CMSEncoder.h`, `SecCertificate.h`, `SecCode.h`, `SecRequirement.h`, `SecStaticCode.h`, `SecTask.h`, `SecIdentity.h`, and `SecTrust.h`.
+- New public `CmsDecoder` / `CmsEncoder`, `Requirement`, `CodeSigningFlags`, `TrustOptions`, and `TrustResultType` types plus expanded top-level re-exports.
+- Smoke coverage for every newly added public API symbol, keeping the full test suite headless and green.
+
 ## [0.2.2] - 2026-05-17
 
 ### Added
