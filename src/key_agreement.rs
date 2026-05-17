@@ -9,6 +9,10 @@ pub struct AgreementPublicKey {
 }
 
 impl AgreementPublicKey {
+    pub fn type_id() -> usize {
+        crate::key::key_type_id()
+    }
+
     fn from_handle(handle: bridge::Handle) -> Self {
         Self { handle }
     }
@@ -29,6 +33,10 @@ pub struct AgreementPrivateKey {
 }
 
 impl AgreementPrivateKey {
+    pub fn type_id() -> usize {
+        crate::key::key_type_id()
+    }
+
     pub fn generate_p256() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();

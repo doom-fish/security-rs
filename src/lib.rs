@@ -47,7 +47,10 @@ pub use cms::Cms;
 pub use code::{Code, SigningInformation, SigningValue, StaticCode, Task};
 pub use error::{OsStatus, Result, SecurityError, StatusError};
 pub use identity::Identity;
-pub use key::{ExternalFormat, ExternalItemType, KeyType, PrivateKey, SignatureAlgorithm};
+pub use key::{
+    EncryptionAlgorithm, ExternalFormat, ExternalItemType, KeyType, PrivateKey,
+    SignatureAlgorithm,
+};
 pub use key_agreement::{AgreementPrivateKey, AgreementPublicKey};
 pub use key_derivation::{DerivedKey, KeyDerivation};
 pub use keychain::{
@@ -68,7 +71,8 @@ pub mod prelude {
     pub use crate::error::{OsStatus, Result, SecurityError, StatusError};
     pub use crate::identity::Identity;
     pub use crate::key::{
-        ExternalFormat, ExternalItemType, KeyType, PrivateKey, SignatureAlgorithm,
+        EncryptionAlgorithm, ExternalFormat, ExternalItemType, KeyType, PrivateKey,
+        SignatureAlgorithm,
     };
     pub use crate::key_agreement::{AgreementPrivateKey, AgreementPublicKey};
     pub use crate::key_derivation::{DerivedKey, KeyDerivation};

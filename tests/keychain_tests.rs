@@ -15,6 +15,7 @@ fn generic_password_round_trip() -> security::Result<()> {
 
 #[test]
 fn creates_access_control() -> security::Result<()> {
+    assert!(AccessControl::type_id() > 0);
     let access_control = AccessControl::create(
         AccessControlProtection::WhenUnlocked,
         AccessControlFlags::PRIVATE_KEY_USAGE,

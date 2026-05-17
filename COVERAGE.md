@@ -6,13 +6,15 @@ Legend:
 - 🟡 partial
 - ⏭️ skipped
 
-The safe API defaults to the Swift bridge. Direct raw C declarations remain available behind the `raw-ffi` Cargo feature.
+The safe API defaults to the Swift bridge. Direct raw C declarations remain available behind the `raw-ffi` Cargo feature, which now exhaustively covers the non-deprecated macOS-available `SecAccessControl.h`, `SecItem.h`, `SecKey.h`, and `SecPolicy.h` surfaces.
 
 | Area | API / header surface | Status | Notes |
 | --- | --- | --- | --- |
 | Keychain | `SecItemAdd`, `SecItemCopyMatching`, `SecItemUpdate`, `SecItemDelete` | ✅ | Exposed through `Keychain` / `KeychainEntry`. |
 | Keychain | Generic-password account enumeration (`kSecReturnAttributes`, `kSecMatchLimitAll`) | ✅ | Exposed through `Keychain::list_accounts`. |
 | Keychain | `SecItemImport`, `SecItemExport` | 🟡 | Covered indirectly through identity / CMS flows; not exposed as generic item import/export yet. |
+| Keychain | `SecAccessControlCreateWithFlags`, `SecAccessControlGetTypeID` | ✅ | Exposed through `AccessControl::create` / `AccessControl::type_id`. |
+| Keychain | Non-deprecated macOS `SecItem.h` raw constants | ✅ | Exposed through the exhaustive `raw-ffi` surface. |
 | Keychain | Legacy `SecKeychain*` manager APIs | ⏭️ | Deprecated macOS-only keychain-manager surface; intentionally left out of the safe bridge. |
 | Identity | `SecIdentityCopyCertificate` | ✅ | Exposed through `Identity::certificate`. |
 | Identity | `SecIdentityCopyPrivateKey` | ✅ | Exposed through `Identity::private_key_attributes`. |
@@ -29,11 +31,17 @@ The safe API defaults to the Swift bridge. Direct raw C declarations remain avai
 | Certificate | `SecCertificateCopySerialNumberData` | ✅ | Exposed through `Certificate::serial_number`. |
 | Certificate | `SecCertificateCopyNotValidBeforeDate`, `SecCertificateCopyNotValidAfterDate` | ✅ | Exposed through `Certificate::not_valid_before` / `not_valid_after` with runtime availability checks. |
 | Certificate | Deprecated add-to-keychain / infer-label helpers | ⏭️ | Deprecated legacy APIs, superseded by `SecItem*` and modern certificate accessors. |
+| Key | `SecKeyCreateWithData`, `SecKeyCopyPublicKey`, `SecKeyCreateSignature`, `SecKeyVerifySignature` | ✅ | Exposed through `PrivateKey`, `PublicKey`, and signature helpers. |
+| Key | `SecKeyCreateEncryptedData`, `SecKeyCreateDecryptedData` | ✅ | Exposed through `PublicKey::encrypt` / `PrivateKey::decrypt`. |
+| Key | `SecKeyCopyExternalRepresentation`, `SecKeyGetBlockSize`, `SecKeyGetTypeID` | ✅ | Exposed through `external_representation`, `block_size`, and `type_id` helpers. |
+| Key | Non-deprecated macOS `SecKey.h` raw constants and modern functions | ✅ | Exposed through the exhaustive `raw-ffi` surface. |
 | Policy | `SecPolicyCreateBasicX509` | ✅ | Exposed through `Policy::basic_x509`. |
 | Policy | `SecPolicyCreateSSL` | ✅ | Exposed through `Policy::ssl`. |
 | Policy | `SecPolicyCreateRevocation` | ✅ | Exposed through `Policy::revocation`. |
 | Policy | `SecPolicyCopyProperties` | ✅ | Exposed through `Policy::properties`. |
-| Policy | `SecPolicyCreateWithProperties` | 🟡 | Header audited; generic constructor not exposed yet because the crate currently focuses on ergonomic named constructors. |
+| Policy | `SecPolicyCreateWithProperties` | ✅ | Exposed through `Policy::with_properties`. |
+| Policy | `SecPolicyGetTypeID` | ✅ | Exposed through `Policy::type_id`. |
+| Policy | Non-deprecated macOS `SecPolicy.h` raw constants | ✅ | Exposed through the exhaustive `raw-ffi` surface. |
 | Policy | Deprecated `SecPolicySearch*` APIs | ⏭️ | Deprecated legacy search APIs. |
 | Trust | `SecTrustCreateWithCertificates` | ✅ | Exposed through `Trust::new` / `Trust::from_certificates`. |
 | Trust | `SecTrustSetPolicies` | ✅ | Exposed through `Trust::set_policies`. |

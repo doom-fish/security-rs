@@ -2,6 +2,7 @@ use security::{Policy, PolicyIdentifier, PolicyName, PolicyProperties};
 
 #[test]
 fn creates_policy_variants() -> security::Result<()> {
+    assert!(Policy::type_id() > 0);
     assert!(Policy::basic_x509()?.properties()?.is_object());
     assert!(Policy::ssl(true, Some("localhost"))?
         .properties()?

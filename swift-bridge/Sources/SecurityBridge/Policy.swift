@@ -95,6 +95,11 @@ private func policyProperties(jsonString: String) -> [CFString: Any]? {
     return properties
 }
 
+@_cdecl("security_policy_get_type_id")
+public func securityPolicyGetTypeID() -> UInt {
+    SecPolicyGetTypeID()
+}
+
 @_cdecl("security_policy_create_basic_x509")
 public func securityPolicyCreateBasicX509(
     _ statusOut: UnsafeMutablePointer<Int32>?,

@@ -46,6 +46,10 @@ pub struct AccessControl {
 }
 
 impl AccessControl {
+    pub fn type_id() -> usize {
+        unsafe { bridge::security_access_control_get_type_id() }
+    }
+
     pub fn create(protection: AccessControlProtection, flags: AccessControlFlags) -> Result<Self> {
         let protection = bridge::cstring(protection.as_bridge_name())?;
         let mut status = 0;

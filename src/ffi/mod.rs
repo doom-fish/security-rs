@@ -9,6 +9,16 @@
 
 use libc::{c_char, c_void, size_t};
 
+mod access_control;
+mod item;
+mod key;
+mod policy;
+
+pub use access_control::*;
+pub use item::*;
+pub use key::*;
+pub use policy::*;
+
 pub type CFTypeRef = *const c_void;
 pub type CFAllocatorRef = *const c_void;
 pub type CFStringRef = *const c_void;
@@ -21,9 +31,11 @@ pub type CFNumberRef = *const c_void;
 pub type CFErrorRef = *const c_void;
 pub type CFIndex = isize;
 pub type CFTypeID = usize;
+pub type CFOptionFlags = usize;
 pub type OSStatus = i32;
 pub type Boolean = u8;
 pub type SecRandomRef = *const c_void;
+pub type SecAccessControlRef = *const c_void;
 pub type SecCertificateRef = *const c_void;
 pub type SecKeyRef = *const c_void;
 pub type SecPolicyRef = *const c_void;

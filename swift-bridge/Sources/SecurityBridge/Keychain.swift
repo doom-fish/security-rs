@@ -31,6 +31,11 @@ private func accessControlProtection(_ name: String) -> CFTypeRef? {
     }
 }
 
+@_cdecl("security_access_control_get_type_id")
+public func securityAccessControlGetTypeID() -> UInt {
+    SecAccessControlGetTypeID()
+}
+
 @_cdecl("security_access_control_create")
 public func securityAccessControlCreate(
     _ protectionPointer: UnsafePointer<CChar>?,

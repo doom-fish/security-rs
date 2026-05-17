@@ -52,12 +52,91 @@ pub enum SignatureAlgorithm {
     EcdsaSignatureDigestX962Sha256 = 4,
 }
 
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EncryptionAlgorithm {
+    RsaEncryptionRaw = 0,
+    RsaEncryptionPkcs1 = 1,
+    RsaEncryptionOaepSha1 = 2,
+    RsaEncryptionOaepSha224 = 3,
+    RsaEncryptionOaepSha256 = 4,
+    RsaEncryptionOaepSha384 = 5,
+    RsaEncryptionOaepSha512 = 6,
+    RsaEncryptionOaepSha1AesGcm = 7,
+    RsaEncryptionOaepSha224AesGcm = 8,
+    RsaEncryptionOaepSha256AesGcm = 9,
+    RsaEncryptionOaepSha384AesGcm = 10,
+    RsaEncryptionOaepSha512AesGcm = 11,
+}
+
+pub(crate) fn key_type_id() -> usize {
+    unsafe { bridge::security_key_get_type_id() }
+}
+
+pub(crate) fn key_block_size(handle: &Handle) -> usize {
+    usize::try_from(unsafe { bridge::security_key_get_block_size(handle.as_ptr()) })
+        .unwrap_or_default()
+}
+
+pub(crate) fn key_external_representation(handle: &Handle) -> Result<Vec<u8>> {
+    let mut status = 0;
+    let mut error = std::ptr::null_mut();
+    let raw = unsafe {
+        bridge::security_key_copy_external_representation(handle.as_ptr(), &mut status, &mut error)
+    };
+    bridge::required_data("security_key_copy_external_representation", raw, status, error)
+}
+
+pub(crate) fn encrypt_with_public_key(
+    handle: &Handle,
+    algorithm: EncryptionAlgorithm,
+    plaintext: &[u8],
+) -> Result<Vec<u8>> {
+    let mut status = 0;
+    let mut error = std::ptr::null_mut();
+    let raw = unsafe {
+        bridge::security_public_key_create_encrypted_data(
+            handle.as_ptr(),
+            algorithm as u32,
+            plaintext.as_ptr().cast(),
+            bridge::len_to_isize(plaintext.len())?,
+            &mut status,
+            &mut error,
+        )
+    };
+    bridge::required_data("security_public_key_create_encrypted_data", raw, status, error)
+}
+
+pub(crate) fn decrypt_with_private_key(
+    handle: &Handle,
+    algorithm: EncryptionAlgorithm,
+    ciphertext: &[u8],
+) -> Result<Vec<u8>> {
+    let mut status = 0;
+    let mut error = std::ptr::null_mut();
+    let raw = unsafe {
+        bridge::security_private_key_create_decrypted_data(
+            handle.as_ptr(),
+            algorithm as u32,
+            ciphertext.as_ptr().cast(),
+            bridge::len_to_isize(ciphertext.len())?,
+            &mut status,
+            &mut error,
+        )
+    };
+    bridge::required_data("security_private_key_create_decrypted_data", raw, status, error)
+}
+
 #[derive(Debug)]
 pub struct PrivateKey {
     handle: Handle,
 }
 
 impl PrivateKey {
+    pub fn type_id() -> usize {
+        key_type_id()
+    }
+
     pub(crate) fn from_handle(handle: Handle) -> Self {
         Self { handle }
     }
@@ -133,6 +212,14 @@ impl PrivateKey {
         bridge::required_json("security_key_copy_attributes", raw, status, error)
     }
 
+    pub fn block_size(&self) -> usize {
+        key_block_size(&self.handle)
+    }
+
+    pub fn external_representation(&self) -> Result<Vec<u8>> {
+        key_external_representation(&self.handle)
+    }
+
     pub fn sign(&self, algorithm: SignatureAlgorithm, data: &[u8]) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -147,5 +234,13 @@ impl PrivateKey {
             )
         };
         bridge::required_data("security_private_key_create_signature", raw, status, error)
+    }
+
+    pub fn decrypt(
+        &self,
+        algorithm: EncryptionAlgorithm,
+        ciphertext: &[u8],
+    ) -> Result<Vec<u8>> {
+        decrypt_with_private_key(&self.handle, algorithm, ciphertext)
     }
 }

@@ -44,6 +44,7 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_access_control_get_type_id() -> usize;
     pub(crate) fn security_access_control_create(
         protection: *const c_char,
         flags: u64,
@@ -147,6 +148,13 @@ unsafe extern "C" {
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
 
+    pub(crate) fn security_key_get_type_id() -> usize;
+    pub(crate) fn security_key_get_block_size(pointer: *mut c_void) -> isize;
+    pub(crate) fn security_key_copy_external_representation(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
     pub(crate) fn security_key_copy_attributes(
         pointer: *mut c_void,
         status_out: *mut OsStatus,
@@ -187,7 +195,24 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> bool;
+    pub(crate) fn security_public_key_create_encrypted_data(
+        pointer: *mut c_void,
+        algorithm: u32,
+        data_pointer: *const c_void,
+        data_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_private_key_create_decrypted_data(
+        pointer: *mut c_void,
+        algorithm: u32,
+        data_pointer: *const c_void,
+        data_length: isize,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
 
+    pub(crate) fn security_policy_get_type_id() -> usize;
     pub(crate) fn security_policy_create_basic_x509(
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,

@@ -103,6 +103,10 @@ pub struct Policy {
 }
 
 impl Policy {
+    pub fn type_id() -> usize {
+        unsafe { bridge::security_policy_get_type_id() }
+    }
+
     pub(crate) fn from_handle(handle: Handle) -> Self {
         Self { handle }
     }

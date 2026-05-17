@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::bridge::{self, Handle};
 use crate::error::{Result, SecurityError};
-use crate::key::{ExternalFormat, ExternalItemType, SignatureAlgorithm};
+use crate::key::{self, EncryptionAlgorithm, ExternalFormat, ExternalItemType, SignatureAlgorithm};
 
 #[derive(Debug)]
 pub struct PublicKey {
@@ -13,6 +13,10 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
+    pub fn type_id() -> usize {
+        key::key_type_id()
+    }
+
     pub(crate) fn from_handle(handle: Handle) -> Self {
         Self { handle }
     }
@@ -24,6 +28,22 @@ impl PublicKey {
             bridge::security_key_copy_attributes(self.handle.as_ptr(), &mut status, &mut error)
         };
         bridge::required_json("security_key_copy_attributes", raw, status, error)
+    }
+
+    pub fn block_size(&self) -> usize {
+        key::key_block_size(&self.handle)
+    }
+
+    pub fn external_representation(&self) -> Result<Vec<u8>> {
+        key::key_external_representation(&self.handle)
+    }
+
+    pub fn encrypt(
+        &self,
+        algorithm: EncryptionAlgorithm,
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>> {
+        key::encrypt_with_public_key(&self.handle, algorithm, plaintext)
     }
 
     pub fn verify_signature(

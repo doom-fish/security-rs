@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.2] - 2026-05-17
+
+### Added
+
+- `EncryptionAlgorithm`, `PublicKey::encrypt`, `PrivateKey::decrypt`, `block_size`, and `external_representation` helpers over the modern `SecKey*` encryption/export APIs.
+- `AccessControl::type_id`, `Policy::type_id`, and shared `SecKey` type-ID helpers across the public key wrappers.
+- Exhaustive `raw-ffi` coverage for the non-deprecated macOS-available `SecAccessControl.h`, `SecItem.h`, `SecKey.h`, and `SecPolicy.h` symbols.
+- `examples/15_key_encrypt_export.rs` plus expanded key / policy / raw-ffi smoke tests.
+
 ## [0.2.1] - 2026-05-16
 
 ### Added

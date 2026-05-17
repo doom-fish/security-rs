@@ -9,6 +9,10 @@ pub struct DerivedKey {
 }
 
 impl DerivedKey {
+    pub fn type_id() -> usize {
+        crate::key::key_type_id()
+    }
+
     pub fn attributes(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
