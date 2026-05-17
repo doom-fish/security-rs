@@ -5,8 +5,8 @@ use std::time::SystemTime;
 
 use security::{
     Authorization, AuthorizationOptions, Certificate, Cms, CmsCertificateChainMode, CmsDecoder,
-    CmsDigestAlgorithm, CmsEncoder, CmsSignedAttributes, Code, CodeSigningFlags, Identity,
-    Policy, PrivateKey, Requirement, StaticCode, Task, Trust, TrustOptions,
+    CmsDigestAlgorithm, CmsEncoder, CmsSignedAttributes, Code, CodeSigningFlags, Identity, Policy,
+    PrivateKey, Requirement, StaticCode, Task, Trust, TrustOptions,
 };
 use serde_json::{json, Value};
 
@@ -36,15 +36,18 @@ fn certificate_new_api_symbols_compile() -> security::Result<()> {
 
     reference(|value: &Certificate| value.add_to_keychain());
     reference(|name: &str, key_usage: &[&str]| Certificate::preferred(name, key_usage));
-    reference(|value: Option<&Certificate>, name: &str, key_usage: &[&str]| {
-        Certificate::set_preferred(value, name, key_usage)
-    });
+    reference(
+        |value: Option<&Certificate>, name: &str, key_usage: &[&str]| {
+            Certificate::set_preferred(value, name, key_usage)
+        },
+    );
     Ok(())
 }
 
 #[test]
 fn identity_new_api_symbols_compile() -> security::Result<()> {
-    let identity = Identity::import_pkcs12_first(&common::fixture("test-identity.p12"), "password")?;
+    let identity =
+        Identity::import_pkcs12_first(&common::fixture("test-identity.p12"), "password")?;
     assert!(Identity::type_id() > 0);
     let _ = identity.actual_domain()?;
 
@@ -52,14 +55,20 @@ fn identity_new_api_symbols_compile() -> security::Result<()> {
         Identity::from_certificate_and_private_key(certificate, private_key)
     });
     reference(|certificate: &Certificate| Identity::with_certificate(certificate));
-    reference(|name: &str, key_usage: &[&str], valid_issuers: &[Vec<u8>]| {
-        Identity::preferred(name, key_usage, valid_issuers)
-    });
-    reference(|identity: Option<&Identity>, name: &str, key_usage: &[&str]| {
-        Identity::set_preferred(identity, name, key_usage)
-    });
+    reference(
+        |name: &str, key_usage: &[&str], valid_issuers: &[Vec<u8>]| {
+            Identity::preferred(name, key_usage, valid_issuers)
+        },
+    );
+    reference(
+        |identity: Option<&Identity>, name: &str, key_usage: &[&str]| {
+            Identity::set_preferred(identity, name, key_usage)
+        },
+    );
     reference(|domain: &str| Identity::copy_system_identity(domain));
-    reference(|domain: &str, value: Option<&Identity>| Identity::set_system_identity(domain, value));
+    reference(|domain: &str, value: Option<&Identity>| {
+        Identity::set_system_identity(domain, value)
+    });
     Ok(())
 }
 
@@ -78,19 +87,27 @@ fn cms_new_api_symbols_compile() -> security::Result<()> {
     reference(|decoder: &mut CmsDecoder, data: &[u8]| decoder.set_detached_content(data));
     reference(|decoder: &CmsDecoder| decoder.detached_content());
     reference(|decoder: &CmsDecoder| decoder.num_signers());
-    reference(|decoder: &CmsDecoder, signer_index: usize, policy: Option<&Policy>, evaluate: bool| {
-        decoder.signer_status(signer_index, policy, evaluate)
+    reference(
+        |decoder: &CmsDecoder, signer_index: usize, policy: Option<&Policy>, evaluate: bool| {
+            decoder.signer_status(signer_index, policy, evaluate)
+        },
+    );
+    reference(|decoder: &CmsDecoder, signer_index: usize| {
+        decoder.signer_email_address(signer_index)
     });
-    reference(|decoder: &CmsDecoder, signer_index: usize| decoder.signer_email_address(signer_index));
     reference(|decoder: &CmsDecoder, signer_index: usize| decoder.signer_certificate(signer_index));
     reference(|decoder: &CmsDecoder| decoder.is_content_encrypted());
     reference(|decoder: &CmsDecoder| decoder.encapsulated_content_type());
     reference(|decoder: &CmsDecoder| decoder.content());
-    reference(|decoder: &CmsDecoder, signer_index: usize| decoder.signer_signing_time(signer_index));
-    reference(|decoder: &CmsDecoder, signer_index: usize| decoder.signer_timestamp(signer_index));
-    reference(|decoder: &CmsDecoder, policy: Option<&Policy>, signer_index: usize| {
-        decoder.signer_timestamp_with_policy(policy, signer_index)
+    reference(|decoder: &CmsDecoder, signer_index: usize| {
+        decoder.signer_signing_time(signer_index)
     });
+    reference(|decoder: &CmsDecoder, signer_index: usize| decoder.signer_timestamp(signer_index));
+    reference(
+        |decoder: &CmsDecoder, policy: Option<&Policy>, signer_index: usize| {
+            decoder.signer_timestamp_with_policy(policy, signer_index)
+        },
+    );
     reference(|decoder: &CmsDecoder, signer_index: usize| {
         decoder.signer_timestamp_certificates(signer_index)
     });
@@ -101,15 +118,23 @@ fn cms_new_api_symbols_compile() -> security::Result<()> {
     });
     reference(|encoder: &mut CmsEncoder, signers: &[Identity]| encoder.add_signers(signers));
     reference(|encoder: &CmsEncoder| encoder.signers());
-    reference(|encoder: &mut CmsEncoder, recipients: &[Certificate]| encoder.add_recipients(recipients));
+    reference(|encoder: &mut CmsEncoder, recipients: &[Certificate]| {
+        encoder.add_recipients(recipients)
+    });
     reference(|encoder: &CmsEncoder| encoder.recipients());
-    reference(|encoder: &mut CmsEncoder, detached: bool| encoder.set_has_detached_content(detached));
+    reference(|encoder: &mut CmsEncoder, detached: bool| {
+        encoder.set_has_detached_content(detached)
+    });
     reference(|encoder: &CmsEncoder| encoder.has_detached_content());
     reference(|encoder: &mut CmsEncoder, oid: &str| encoder.set_encapsulated_content_type_oid(oid));
     reference(|encoder: &CmsEncoder| encoder.encapsulated_content_type());
-    reference(|encoder: &mut CmsEncoder, certs: &[Certificate]| encoder.add_supporting_certificates(certs));
+    reference(|encoder: &mut CmsEncoder, certs: &[Certificate]| {
+        encoder.add_supporting_certificates(certs)
+    });
     reference(|encoder: &CmsEncoder| encoder.supporting_certificates());
-    reference(|encoder: &mut CmsEncoder, attrs: CmsSignedAttributes| encoder.add_signed_attributes(attrs));
+    reference(|encoder: &mut CmsEncoder, attrs: CmsSignedAttributes| {
+        encoder.add_signed_attributes(attrs)
+    });
     reference(|encoder: &mut CmsEncoder, mode: CmsCertificateChainMode| {
         encoder.set_certificate_chain_mode(mode)
     });
@@ -117,9 +142,11 @@ fn cms_new_api_symbols_compile() -> security::Result<()> {
     reference(|encoder: &mut CmsEncoder, data: &[u8]| encoder.update_content(data));
     reference(|encoder: &CmsEncoder| encoder.encoded_content());
     reference(|encoder: &CmsEncoder, signer_index: usize| encoder.signer_timestamp(signer_index));
-    reference(|encoder: &CmsEncoder, policy: Option<&Policy>, signer_index: usize| {
-        encoder.signer_timestamp_with_policy(policy, signer_index)
-    });
+    reference(
+        |encoder: &CmsEncoder, policy: Option<&Policy>, signer_index: usize| {
+            encoder.signer_timestamp_with_policy(policy, signer_index)
+        },
+    );
 
     reference(
         |signers: &[Identity],
@@ -127,7 +154,9 @@ fn cms_new_api_symbols_compile() -> security::Result<()> {
          oid: Option<&str>,
          detached: bool,
          attrs: CmsSignedAttributes,
-         content: &[u8]| { Cms::encode_content(signers, recipients, oid, detached, attrs, content) },
+         content: &[u8]| {
+            Cms::encode_content(signers, recipients, oid, detached, attrs, content)
+        },
     );
     Ok(())
 }
@@ -153,22 +182,34 @@ fn code_new_api_symbols_compile() -> security::Result<()> {
     let _ = task.entitlements(&["com.apple.security.app-sandbox"])?;
 
     reference(|value: &Code| value.host());
-    reference(|host: Option<&Code>, attributes: Option<&Value>, flags: CodeSigningFlags| {
-        Code::guest_with_attributes(host, attributes, flags)
+    reference(
+        |host: Option<&Code>, attributes: Option<&Value>, flags: CodeSigningFlags| {
+            Code::guest_with_attributes(host, attributes, flags)
+        },
+    );
+    reference(|path: &Path, attributes: &Value| {
+        StaticCode::from_path_with_attributes(path, attributes)
     });
-    reference(|path: &Path, attributes: &Value| StaticCode::from_path_with_attributes(path, attributes));
-    reference(|value: &StaticCode, flags: CodeSigningFlags, requirement: Option<&Requirement>| {
-        value.check_validity_with_errors(flags, requirement)
-    });
-    reference(|value: &StaticCode, flags: CodeSigningFlags, requirement: Option<&Requirement>| {
-        value.check_static_validity(flags, requirement)
-    });
-    reference(|value: &StaticCode, flags: CodeSigningFlags, requirement: Option<&Requirement>| {
-        value.check_static_validity_with_errors(flags, requirement)
-    });
-    reference(|value: &StaticCode, relative_path: &str, data: &[u8], flags: CodeSigningFlags| {
-        value.validate_file_resource(relative_path, data, flags)
-    });
+    reference(
+        |value: &StaticCode, flags: CodeSigningFlags, requirement: Option<&Requirement>| {
+            value.check_validity_with_errors(flags, requirement)
+        },
+    );
+    reference(
+        |value: &StaticCode, flags: CodeSigningFlags, requirement: Option<&Requirement>| {
+            value.check_static_validity(flags, requirement)
+        },
+    );
+    reference(
+        |value: &StaticCode, flags: CodeSigningFlags, requirement: Option<&Requirement>| {
+            value.check_static_validity_with_errors(flags, requirement)
+        },
+    );
+    reference(
+        |value: &StaticCode, relative_path: &str, data: &[u8], flags: CodeSigningFlags| {
+            value.validate_file_resource(relative_path, data, flags)
+        },
+    );
     reference(|value: &StaticCode, flags: CodeSigningFlags| value.map_memory(flags));
     Ok(())
 }
@@ -188,7 +229,9 @@ fn trust_new_api_symbols_compile() {
     reference(|value: &Trust| value.exceptions());
     reference(|value: &mut Trust, exceptions: Option<&[u8]>| value.set_exceptions(exceptions));
     reference(|value: &mut Trust, responses: &[Vec<u8>]| value.set_ocsp_responses(responses));
-    reference(|value: &mut Trust, timestamps: &[Vec<u8>]| value.set_signed_certificate_timestamps(timestamps));
+    reference(|value: &mut Trust, timestamps: &[Vec<u8>]| {
+        value.set_signed_certificate_timestamps(timestamps)
+    });
     reference(|value: &mut Trust, options: TrustOptions| value.set_options(options));
     reference(Trust::system_anchor_certificates as fn() -> security::Result<Value>);
 }

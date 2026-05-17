@@ -84,7 +84,12 @@ pub(crate) fn key_external_representation(handle: &Handle) -> Result<Vec<u8>> {
     let raw = unsafe {
         bridge::security_key_copy_external_representation(handle.as_ptr(), &mut status, &mut error)
     };
-    bridge::required_data("security_key_copy_external_representation", raw, status, error)
+    bridge::required_data(
+        "security_key_copy_external_representation",
+        raw,
+        status,
+        error,
+    )
 }
 
 pub(crate) fn encrypt_with_public_key(
@@ -104,7 +109,12 @@ pub(crate) fn encrypt_with_public_key(
             &mut error,
         )
     };
-    bridge::required_data("security_public_key_create_encrypted_data", raw, status, error)
+    bridge::required_data(
+        "security_public_key_create_encrypted_data",
+        raw,
+        status,
+        error,
+    )
 }
 
 pub(crate) fn decrypt_with_private_key(
@@ -124,7 +134,12 @@ pub(crate) fn decrypt_with_private_key(
             &mut error,
         )
     };
-    bridge::required_data("security_private_key_create_decrypted_data", raw, status, error)
+    bridge::required_data(
+        "security_private_key_create_decrypted_data",
+        raw,
+        status,
+        error,
+    )
 }
 
 #[derive(Debug)]
@@ -240,11 +255,7 @@ impl PrivateKey {
         bridge::required_data("security_private_key_create_signature", raw, status, error)
     }
 
-    pub fn decrypt(
-        &self,
-        algorithm: EncryptionAlgorithm,
-        ciphertext: &[u8],
-    ) -> Result<Vec<u8>> {
+    pub fn decrypt(&self, algorithm: EncryptionAlgorithm, ciphertext: &[u8]) -> Result<Vec<u8>> {
         decrypt_with_private_key(&self.handle, algorithm, ciphertext)
     }
 }

@@ -7,7 +7,8 @@ pub const kSecRevocationCRLMethod: CFOptionFlags = 1 << 1;
 pub const kSecRevocationPreferCRL: CFOptionFlags = 1 << 2;
 pub const kSecRevocationRequirePositiveResponse: CFOptionFlags = 1 << 3;
 pub const kSecRevocationNetworkAccessDisabled: CFOptionFlags = 1 << 4;
-pub const kSecRevocationUseAnyAvailableMethod: CFOptionFlags = kSecRevocationOCSPMethod | kSecRevocationCRLMethod;
+pub const kSecRevocationUseAnyAvailableMethod: CFOptionFlags =
+    kSecRevocationOCSPMethod | kSecRevocationCRLMethod;
 
 extern "C" {
     pub static kSecPolicyAppleX509Basic: CFStringRef;
@@ -47,5 +48,8 @@ extern "C" {
     pub fn SecPolicyGetTypeID() -> CFTypeID;
     pub fn SecPolicyCopyProperties(policy_ref: SecPolicyRef) -> CFDictionaryRef;
     pub fn SecPolicyCreateRevocation(revocation_flags: CFOptionFlags) -> SecPolicyRef;
-    pub fn SecPolicyCreateWithProperties(policy_identifier: CFTypeRef, properties: CFDictionaryRef) -> SecPolicyRef;
+    pub fn SecPolicyCreateWithProperties(
+        policy_identifier: CFTypeRef,
+        properties: CFDictionaryRef,
+    ) -> SecPolicyRef;
 }

@@ -22,9 +22,9 @@ fn main() {
     let swift_triple = match target_arch.as_str() {
         "x86_64" => "x86_64-apple-macosx",
         "aarch64" => "arm64-apple-macosx",
-        other => panic!(
-            "security-rs: unsupported target arch '{other}'. Expected x86_64 or aarch64."
-        ),
+        other => {
+            panic!("security-rs: unsupported target arch '{other}'. Expected x86_64 or aarch64.")
+        }
     };
 
     let output = Command::new("swift")
@@ -43,8 +43,14 @@ fn main() {
         .expect("failed to build Swift bridge");
 
     if !output.status.success() {
-        eprintln!("Swift build STDOUT:\n{}", String::from_utf8_lossy(&output.stdout));
-        eprintln!("Swift build STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
+        eprintln!(
+            "Swift build STDOUT:\n{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        eprintln!(
+            "Swift build STDERR:\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         panic!("Swift bridge build failed");
     }
 
@@ -55,8 +61,11 @@ fn main() {
     if let Ok(output) = Command::new("xcode-select").arg("-p").output() {
         if output.status.success() {
             let xcode_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let swift_runtime = format!("{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx");
-            let swift_compat = format!("{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx");
+            let swift_runtime =
+                format!("{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx");
+            let swift_compat = format!(
+                "{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx"
+            );
             println!("cargo:rustc-link-search=native={swift_runtime}");
             println!("cargo:rustc-link-search=native={swift_compat}");
             println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_runtime}");

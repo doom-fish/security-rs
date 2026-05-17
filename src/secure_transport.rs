@@ -83,7 +83,11 @@ impl SecureTransportContext {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_secure_transport_copy_state(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_secure_transport_copy_state(
+                self.handle.as_ptr(),
+                &mut status,
+                &mut error,
+            )
         };
         bridge::required_json("security_secure_transport_copy_state", raw, status, error)
     }
@@ -95,7 +99,6 @@ fn create_context(
     let mut status = 0;
     let mut error = std::ptr::null_mut();
     let raw = unsafe { create(&mut status, &mut error) };
-    bridge::required_handle("security_secure_transport_create", raw, status, error).map(|handle| {
-        SecureTransportContext { handle }
-    })
+    bridge::required_handle("security_secure_transport_create", raw, status, error)
+        .map(|handle| SecureTransportContext { handle })
 }

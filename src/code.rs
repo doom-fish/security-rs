@@ -74,9 +74,8 @@ impl Code {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe { bridge::security_code_copy_self(&mut status, &mut error) };
-        bridge::required_handle("security_code_copy_self", raw, status, error).map(|handle| Self {
-            handle,
-        })
+        bridge::required_handle("security_code_copy_self", raw, status, error)
+            .map(|handle| Self { handle })
     }
 
     pub fn host(&self) -> Result<Self> {
@@ -85,9 +84,8 @@ impl Code {
         let raw = unsafe {
             bridge::security_code_copy_host(self.handle.as_ptr(), &mut status, &mut error)
         };
-        bridge::required_handle("security_code_copy_host", raw, status, error).map(|handle| Self {
-            handle,
-        })
+        bridge::required_handle("security_code_copy_host", raw, status, error)
+            .map(|handle| Self { handle })
     }
 
     pub fn guest_with_attributes(
@@ -101,7 +99,9 @@ impl Code {
         let raw = unsafe {
             bridge::security_code_copy_guest_with_attributes(
                 host.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
-                attributes.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                attributes
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
                 flags.bits(),
                 &mut status,
                 &mut error,
@@ -175,8 +175,13 @@ impl Requirement {
         let raw = unsafe {
             bridge::security_requirement_create_with_string(text.as_ptr(), &mut status, &mut error)
         };
-        bridge::required_handle("security_requirement_create_with_string", raw, status, error)
-            .map(Self::from_handle)
+        bridge::required_handle(
+            "security_requirement_create_with_string",
+            raw,
+            status,
+            error,
+        )
+        .map(Self::from_handle)
     }
 
     pub fn from_string_with_errors(text: &str) -> Result<Self> {
@@ -403,7 +408,8 @@ impl StaticCode {
                 .and_then(|value| value.get("com.apple.security.app-sandbox")),
                 Some(Value::Bool(true))
             ),
-            status: find_integer(&value, &["status", "Status"]).and_then(|value| u32::try_from(value).ok()),
+            status: find_integer(&value, &["status", "Status"])
+                .and_then(|value| u32::try_from(value).ok()),
         })
     }
 
@@ -451,9 +457,8 @@ impl Task {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe { bridge::security_task_create_from_self(&mut status, &mut error) };
-        bridge::required_handle("security_task_create_from_self", raw, status, error).map(|handle| Self {
-            handle,
-        })
+        bridge::required_handle("security_task_create_from_self", raw, status, error)
+            .map(|handle| Self { handle })
     }
 
     pub fn current_with_audit_token() -> Result<Self> {
@@ -475,7 +480,11 @@ impl Task {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_task_copy_signing_identifier(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_task_copy_signing_identifier(
+                self.handle.as_ptr(),
+                &mut status,
+                &mut error,
+            )
         };
         if raw.is_null() && status == 0 {
             Ok(None)
@@ -559,9 +568,10 @@ fn json_object_to_map(object: &serde_json::Map<String, Value>) -> BTreeMap<Strin
 fn signing_value(value: &Value) -> SigningValue {
     match value {
         Value::Bool(value) => SigningValue::Boolean(*value),
-        Value::Number(value) => value
-            .as_i64()
-            .map_or_else(|| SigningValue::Unknown(value.to_string()), SigningValue::Integer),
+        Value::Number(value) => value.as_i64().map_or_else(
+            || SigningValue::Unknown(value.to_string()),
+            SigningValue::Integer,
+        ),
         Value::String(value) => SigningValue::String(value.clone()),
         Value::Array(values) => {
             if let Some(data) = data_from_wrapped_json(value) {
@@ -587,5 +597,7 @@ fn data_from_wrapped_json(value: &Value) -> Option<Vec<u8>> {
         return None;
     }
     let base64 = object.get("base64")?.as_str()?;
-    base64::engine::general_purpose::STANDARD.decode(base64).ok()
+    base64::engine::general_purpose::STANDARD
+        .decode(base64)
+        .ok()
 }

@@ -3,8 +3,7 @@
 use libc::size_t;
 
 use super::{
-    Boolean, CFDataRef, CFDictionaryRef, CFErrorRef, CFIndex, CFStringRef, CFTypeID,
-    SecKeyRef,
+    Boolean, CFDataRef, CFDictionaryRef, CFErrorRef, CFIndex, CFStringRef, CFTypeID, SecKeyRef,
 };
 
 pub type SecKeyAlgorithm = CFStringRef;
@@ -110,7 +109,11 @@ extern "C" {
     pub static kSecKeyKeyExchangeParameterSharedInfo: SecKeyKeyExchangeParameter;
     pub fn SecKeyGetTypeID() -> CFTypeID;
     pub fn SecKeyCreateRandomKey(parameters: CFDictionaryRef, error: *mut CFErrorRef) -> SecKeyRef;
-    pub fn SecKeyCreateWithData(key_data: CFDataRef, attributes: CFDictionaryRef, error: *mut CFErrorRef) -> SecKeyRef;
+    pub fn SecKeyCreateWithData(
+        key_data: CFDataRef,
+        attributes: CFDictionaryRef,
+        error: *mut CFErrorRef,
+    ) -> SecKeyRef;
     pub fn SecKeyGetBlockSize(key: SecKeyRef) -> size_t;
     pub fn SecKeyCopyExternalRepresentation(key: SecKeyRef, error: *mut CFErrorRef) -> CFDataRef;
     pub fn SecKeyCopyAttributes(key: SecKeyRef) -> CFDictionaryRef;

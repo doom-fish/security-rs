@@ -48,7 +48,12 @@ impl Authorization {
                 &mut error,
             )
         };
-        bridge::required_data("security_authorization_make_external_form", raw, status, error)
+        bridge::required_data(
+            "security_authorization_make_external_form",
+            raw,
+            status,
+            error,
+        )
     }
 
     pub fn from_external_form(external_form: &[u8]) -> Result<Self> {
@@ -78,7 +83,8 @@ impl Authorization {
         let raw = unsafe {
             bridge::security_authorization_copy_info(
                 self.handle.as_ptr(),
-                tag.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                tag.as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
                 &mut status,
                 &mut error,
             )
@@ -86,11 +92,7 @@ impl Authorization {
         bridge::required_json("security_authorization_copy_info", raw, status, error)
     }
 
-    pub fn copy_rights(
-        &self,
-        rights: &[&str],
-        options: AuthorizationOptions,
-    ) -> Result<Value> {
+    pub fn copy_rights(&self, rights: &[&str], options: AuthorizationOptions) -> Result<Value> {
         let rights_json = bridge::json_cstring(&rights)?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -123,6 +125,11 @@ impl Authorization {
                 &mut error,
             )
         };
-        bridge::required_json("security_authorization_copy_rights_async", raw, status, error)
+        bridge::required_json(
+            "security_authorization_copy_rights_async",
+            raw,
+            status,
+            error,
+        )
     }
 }

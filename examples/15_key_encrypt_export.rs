@@ -14,7 +14,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         EncryptionAlgorithm::RsaEncryptionOaepSha256,
         b"security-rs example",
     )?;
-    let plaintext = private_key.decrypt(EncryptionAlgorithm::RsaEncryptionOaepSha256, &ciphertext)?;
+    let plaintext =
+        private_key.decrypt(EncryptionAlgorithm::RsaEncryptionOaepSha256, &ciphertext)?;
     assert_eq!(plaintext, b"security-rs example");
 
     let signature = private_key.sign(

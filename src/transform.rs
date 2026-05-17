@@ -17,7 +17,9 @@ impl Transform {
         };
         let bytes = bridge::required_data("security_transform_encode_base64", raw, status, error)?;
         String::from_utf8(bytes).map_err(|error| {
-            SecurityError::Serialization(format!("base64 transform returned invalid UTF-8: {error}"))
+            SecurityError::Serialization(format!(
+                "base64 transform returned invalid UTF-8: {error}"
+            ))
         })
     }
 

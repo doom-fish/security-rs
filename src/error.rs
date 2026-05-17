@@ -84,11 +84,7 @@ impl SecurityError {
         }
     }
 
-    pub(crate) fn from_status(
-        operation: &'static str,
-        status: OsStatus,
-        message: String,
-    ) -> Self {
+    pub(crate) fn from_status(operation: &'static str, status: OsStatus, message: String) -> Self {
         match status {
             status::ITEM_NOT_FOUND => Self::ItemNotFound(message),
             status::DUPLICATE_ITEM => Self::DuplicateItem(message),

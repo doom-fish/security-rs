@@ -171,7 +171,12 @@ impl CmsDecoder {
                 &mut error,
             )
         };
-        bridge::required_json("security_cms_decoder_copy_signer_status", raw, status, error)
+        bridge::required_json(
+            "security_cms_decoder_copy_signer_status",
+            raw,
+            status,
+            error,
+        )
     }
 
     pub fn signer_email_address(&self, signer_index: usize) -> Result<Option<String>> {
@@ -257,11 +262,7 @@ impl CmsDecoder {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_cms_decoder_copy_content(
-                self.handle.as_ptr(),
-                &mut status,
-                &mut error,
-            )
+            bridge::security_cms_decoder_copy_content(self.handle.as_ptr(), &mut status, &mut error)
         };
         if status != 0 {
             return Err(bridge::status_error(
@@ -274,37 +275,31 @@ impl CmsDecoder {
     }
 
     pub fn signer_signing_time(&self, signer_index: usize) -> Result<Option<SystemTime>> {
-        decode_optional_cms_date(
-            "security_cms_decoder_copy_signer_signing_time",
-            unsafe {
-                let mut status = 0;
-                let mut error = std::ptr::null_mut();
-                let raw = bridge::security_cms_decoder_copy_signer_signing_time(
-                    self.handle.as_ptr(),
-                    bridge::len_to_isize(signer_index)?,
-                    &mut status,
-                    &mut error,
-                );
-                (raw, status, error)
-            },
-        )
+        decode_optional_cms_date("security_cms_decoder_copy_signer_signing_time", unsafe {
+            let mut status = 0;
+            let mut error = std::ptr::null_mut();
+            let raw = bridge::security_cms_decoder_copy_signer_signing_time(
+                self.handle.as_ptr(),
+                bridge::len_to_isize(signer_index)?,
+                &mut status,
+                &mut error,
+            );
+            (raw, status, error)
+        })
     }
 
     pub fn signer_timestamp(&self, signer_index: usize) -> Result<Option<SystemTime>> {
-        decode_optional_cms_date(
-            "security_cms_decoder_copy_signer_timestamp",
-            unsafe {
-                let mut status = 0;
-                let mut error = std::ptr::null_mut();
-                let raw = bridge::security_cms_decoder_copy_signer_timestamp(
-                    self.handle.as_ptr(),
-                    bridge::len_to_isize(signer_index)?,
-                    &mut status,
-                    &mut error,
-                );
-                (raw, status, error)
-            },
-        )
+        decode_optional_cms_date("security_cms_decoder_copy_signer_timestamp", unsafe {
+            let mut status = 0;
+            let mut error = std::ptr::null_mut();
+            let raw = bridge::security_cms_decoder_copy_signer_timestamp(
+                self.handle.as_ptr(),
+                bridge::len_to_isize(signer_index)?,
+                &mut status,
+                &mut error,
+            );
+            (raw, status, error)
+        })
     }
 
     pub fn signer_timestamp_with_policy(
@@ -361,7 +356,8 @@ impl CmsDecoder {
         };
         let _ = raw;
         Err(SecurityError::InvalidArgument(
-            "CmsDecoder::all_certificates is not available; use Cms::decode_all_certificates".to_owned(),
+            "CmsDecoder::all_certificates is not available; use Cms::decode_all_certificates"
+                .to_owned(),
         ))
     }
 }
@@ -418,7 +414,10 @@ impl CmsEncoder {
     }
 
     pub fn add_recipients(&mut self, recipients: &[Certificate]) -> Result<()> {
-        let handles = recipients.iter().map(Certificate::handle).collect::<Vec<_>>();
+        let handles = recipients
+            .iter()
+            .map(Certificate::handle)
+            .collect::<Vec<_>>();
         let pointers = bridge::handle_pointer_array(&handles);
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -454,7 +453,11 @@ impl CmsEncoder {
                 &mut error,
             )
         };
-        bridge::status_result("security_cms_encoder_set_has_detached_content", status, error)
+        bridge::status_result(
+            "security_cms_encoder_set_has_detached_content",
+            status,
+            error,
+        )
     }
 
     pub fn has_detached_content(&self) -> Result<bool> {
@@ -515,7 +518,10 @@ impl CmsEncoder {
     }
 
     pub fn add_supporting_certificates(&mut self, certificates: &[Certificate]) -> Result<()> {
-        let handles = certificates.iter().map(Certificate::handle).collect::<Vec<_>>();
+        let handles = certificates
+            .iter()
+            .map(Certificate::handle)
+            .collect::<Vec<_>>();
         let pointers = bridge::handle_pointer_array(&handles);
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -539,7 +545,12 @@ impl CmsEncoder {
                 &mut error,
             )
         };
-        bridge::required_json("security_cms_encoder_copy_supporting_certs", raw, status, error)
+        bridge::required_json(
+            "security_cms_encoder_copy_supporting_certs",
+            raw,
+            status,
+            error,
+        )
     }
 
     pub fn add_signed_attributes(&mut self, signed_attributes: CmsSignedAttributes) -> Result<()> {
@@ -566,7 +577,11 @@ impl CmsEncoder {
                 &mut error,
             )
         };
-        bridge::status_result("security_cms_encoder_set_certificate_chain_mode", status, error)
+        bridge::status_result(
+            "security_cms_encoder_set_certificate_chain_mode",
+            status,
+            error,
+        )
     }
 
     pub fn certificate_chain_mode(&self) -> Result<CmsCertificateChainMode> {
@@ -612,24 +627,26 @@ impl CmsEncoder {
                 &mut error,
             )
         };
-        bridge::required_data("security_cms_encoder_copy_encoded_content", raw, status, error)
+        bridge::required_data(
+            "security_cms_encoder_copy_encoded_content",
+            raw,
+            status,
+            error,
+        )
     }
 
     pub fn signer_timestamp(&self, signer_index: usize) -> Result<Option<SystemTime>> {
-        decode_optional_cms_date(
-            "security_cms_encoder_copy_signer_timestamp",
-            unsafe {
-                let mut status = 0;
-                let mut error = std::ptr::null_mut();
-                let raw = bridge::security_cms_encoder_copy_signer_timestamp(
-                    self.handle.as_ptr(),
-                    bridge::len_to_isize(signer_index)?,
-                    &mut status,
-                    &mut error,
-                );
-                (raw, status, error)
-            },
-        )
+        decode_optional_cms_date("security_cms_encoder_copy_signer_timestamp", unsafe {
+            let mut status = 0;
+            let mut error = std::ptr::null_mut();
+            let raw = bridge::security_cms_encoder_copy_signer_timestamp(
+                self.handle.as_ptr(),
+                bridge::len_to_isize(signer_index)?,
+                &mut status,
+                &mut error,
+            );
+            (raw, status, error)
+        })
     }
 
     pub fn signer_timestamp_with_policy(
@@ -691,12 +708,8 @@ impl Cms {
                 &mut error,
             )
         };
-        let array_handle = bridge::required_handle(
-            "security_cms_decode_all_certificates",
-            raw,
-            status,
-            error,
-        )?;
+        let array_handle =
+            bridge::required_handle("security_cms_decode_all_certificates", raw, status, error)?;
         let count = usize::try_from(unsafe {
             bridge::security_certificate_array_get_count(array_handle.as_ptr())
         })
@@ -734,7 +747,10 @@ impl Cms {
     ) -> Result<Vec<u8>> {
         let signer_handles = signers.iter().map(Identity::handle).collect::<Vec<_>>();
         let signer_pointers = bridge::handle_pointer_array(&signer_handles);
-        let recipient_handles = recipients.iter().map(Certificate::handle).collect::<Vec<_>>();
+        let recipient_handles = recipients
+            .iter()
+            .map(Certificate::handle)
+            .collect::<Vec<_>>();
         let recipient_pointers = bridge::handle_pointer_array(&recipient_handles);
         let encapsulated_content_type_oid = encapsulated_content_type_oid
             .map(bridge::cstring)
@@ -770,16 +786,20 @@ fn decode_optional_cms_date(
     if status != 0 {
         return Err(bridge::status_error(operation, status, error)?);
     }
-    bridge::optional_json::<Value>(raw)?.map_or(Ok(None), |value| decode_cms_date(value, operation).map(Some))
+    bridge::optional_json::<Value>(raw)?.map_or(Ok(None), |value| {
+        decode_cms_date(value, operation).map(Some)
+    })
 }
 
 fn decode_cms_date(value: Value, operation: &'static str) -> Result<SystemTime> {
-    let unix = value.get("unix").and_then(Value::as_f64).ok_or_else(|| {
-        SecurityError::UnexpectedType {
-            operation,
-            expected: "date JSON object",
-        }
-    })?;
+    let unix =
+        value
+            .get("unix")
+            .and_then(Value::as_f64)
+            .ok_or_else(|| SecurityError::UnexpectedType {
+                operation,
+                expected: "date JSON object",
+            })?;
     let duration = Duration::from_secs_f64(unix.abs());
     if unix >= 0.0 {
         Ok(UNIX_EPOCH + duration)

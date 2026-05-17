@@ -44,8 +44,7 @@ pub mod trust;
 pub use authorization::{Authorization, AuthorizationOptions};
 pub use certificate::{Certificate, PublicKey};
 pub use cms::{
-    Cms, CmsCertificateChainMode, CmsDecoder, CmsDigestAlgorithm, CmsEncoder,
-    CmsSignedAttributes,
+    Cms, CmsCertificateChainMode, CmsDecoder, CmsDigestAlgorithm, CmsEncoder, CmsSignedAttributes,
 };
 pub use code::{
     Code, CodeSigningFlags, Requirement, SigningInformation, SigningValue, StaticCode, Task,
@@ -53,8 +52,7 @@ pub use code::{
 pub use error::{OsStatus, Result, SecurityError, StatusError};
 pub use identity::Identity;
 pub use key::{
-    EncryptionAlgorithm, ExternalFormat, ExternalItemType, KeyType, PrivateKey,
-    SignatureAlgorithm,
+    EncryptionAlgorithm, ExternalFormat, ExternalItemType, KeyType, PrivateKey, SignatureAlgorithm,
 };
 pub use key_agreement::{AgreementPrivateKey, AgreementPublicKey};
 pub use key_derivation::{DerivedKey, KeyDerivation};

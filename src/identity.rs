@@ -54,7 +54,8 @@ impl Identity {
                 &mut error,
             )
         };
-        bridge::required_handle("security_identity_create", raw, status, error).map(Self::from_handle)
+        bridge::required_handle("security_identity_create", raw, status, error)
+            .map(Self::from_handle)
     }
 
     pub fn with_certificate(certificate: &Certificate) -> Result<Self> {
@@ -67,8 +68,13 @@ impl Identity {
                 &mut error,
             )
         };
-        bridge::required_handle("security_identity_create_with_certificate", raw, status, error)
-            .map(Self::from_handle)
+        bridge::required_handle(
+            "security_identity_create_with_certificate",
+            raw,
+            status,
+            error,
+        )
+        .map(Self::from_handle)
     }
 
     pub fn preferred(
@@ -88,7 +94,9 @@ impl Identity {
         let raw = unsafe {
             bridge::security_identity_copy_preferred(
                 name.as_ptr(),
-                key_usage.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                key_usage
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
                 valid_issuers
                     .as_ref()
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
@@ -105,11 +113,7 @@ impl Identity {
         }
     }
 
-    pub fn set_preferred(
-        identity: Option<&Self>,
-        name: &str,
-        key_usage: &[&str],
-    ) -> Result<()> {
+    pub fn set_preferred(identity: Option<&Self>, name: &str, key_usage: &[&str]) -> Result<()> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())
             .then(|| bridge::json_cstring(&key_usage))
@@ -119,7 +123,9 @@ impl Identity {
             bridge::security_identity_set_preferred(
                 identity.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
                 name.as_ptr(),
-                key_usage.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                key_usage
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
                 &mut error,
             )
         };
@@ -131,11 +137,7 @@ impl Identity {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_identity_copy_system_identity(
-                domain.as_ptr(),
-                &mut status,
-                &mut error,
-            )
+            bridge::security_identity_copy_system_identity(domain.as_ptr(), &mut status, &mut error)
         };
         bridge::required_handle("security_identity_copy_system_identity", raw, status, error)
             .map(Self::from_handle)
@@ -173,7 +175,11 @@ impl Identity {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_identity_copy_certificate(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_identity_copy_certificate(
+                self.handle.as_ptr(),
+                &mut status,
+                &mut error,
+            )
         };
         bridge::required_handle("security_identity_copy_certificate", raw, status, error)
             .map(Certificate::from_handle)
@@ -189,6 +195,11 @@ impl Identity {
                 &mut error,
             )
         };
-        bridge::required_json("security_identity_copy_private_key_attributes", raw, status, error)
+        bridge::required_json(
+            "security_identity_copy_private_key_attributes",
+            raw,
+            status,
+            error,
+        )
     }
 }

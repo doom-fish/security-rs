@@ -28,10 +28,8 @@ fn signs_verifies_encrypts_and_exports_private_keys() -> security::Result<()> {
     assert_eq!(derived_public_key.block_size(), 256);
     assert!(!derived_public_key.external_representation()?.is_empty());
 
-    let ciphertext = derived_public_key.encrypt(
-        EncryptionAlgorithm::RsaEncryptionOaepSha256,
-        b"security-rs",
-    )?;
+    let ciphertext =
+        derived_public_key.encrypt(EncryptionAlgorithm::RsaEncryptionOaepSha256, b"security-rs")?;
     let plaintext = raw_key.decrypt(EncryptionAlgorithm::RsaEncryptionOaepSha256, &ciphertext)?;
     assert_eq!(plaintext, b"security-rs");
 

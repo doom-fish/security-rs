@@ -67,7 +67,10 @@ impl Trust {
     }
 
     pub fn from_certificates(certificates: &[Certificate], policies: &[Policy]) -> Result<Self> {
-        let certificate_handles = certificates.iter().map(Certificate::handle).collect::<Vec<_>>();
+        let certificate_handles = certificates
+            .iter()
+            .map(Certificate::handle)
+            .collect::<Vec<_>>();
         let policy_handles = policies.iter().map(Policy::handle).collect::<Vec<_>>();
         let certificate_pointers = bridge::handle_pointer_array(&certificate_handles);
         let policy_pointers = bridge::handle_pointer_array(&policy_handles);
@@ -83,9 +86,8 @@ impl Trust {
                 &mut error,
             )
         };
-        bridge::required_handle("security_trust_create", raw, status, error).map(|handle| Self {
-            handle,
-        })
+        bridge::required_handle("security_trust_create", raw, status, error)
+            .map(|handle| Self { handle })
     }
 
     pub fn set_policies(&mut self, policies: &[Policy]) -> Result<()> {
@@ -113,7 +115,10 @@ impl Trust {
     }
 
     pub fn set_anchor_certificates(&mut self, certificates: &[Certificate]) -> Result<()> {
-        let certificate_handles = certificates.iter().map(Certificate::handle).collect::<Vec<_>>();
+        let certificate_handles = certificates
+            .iter()
+            .map(Certificate::handle)
+            .collect::<Vec<_>>();
         let pointers = bridge::handle_pointer_array(&certificate_handles);
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -160,7 +165,11 @@ impl Trust {
     pub fn set_network_fetch_allowed(&mut self, allowed: bool) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_trust_set_network_fetch_allowed(self.handle.as_ptr(), allowed, &mut error)
+            bridge::security_trust_set_network_fetch_allowed(
+                self.handle.as_ptr(),
+                allowed,
+                &mut error,
+            )
         };
         bridge::status_result("security_trust_set_network_fetch_allowed", status, error)
     }
@@ -210,7 +219,8 @@ impl Trust {
                 error,
             )?);
         }
-        bridge::optional_json::<Value>(raw)?.map_or(Ok(None), |value| decode_trust_date(value).map(Some))
+        bridge::optional_json::<Value>(raw)?
+            .map_or(Ok(None), |value| decode_trust_date(value).map(Some))
     }
 
     pub fn evaluate(&self) -> Result<()> {
@@ -219,7 +229,8 @@ impl Trust {
         if trusted {
             Ok(())
         } else {
-            let message = bridge::optional_string(error)?.unwrap_or_else(|| "trust evaluation failed".to_owned());
+            let message = bridge::optional_string(error)?
+                .unwrap_or_else(|| "trust evaluation failed".to_owned());
             Err(SecurityError::TrustEvaluationFailed(message))
         }
     }
@@ -231,12 +242,17 @@ impl Trust {
             bridge::security_trust_evaluate_async(self.handle.as_ptr(), &mut status, &mut error)
         };
         if status != 0 {
-            return Err(bridge::status_error("security_trust_evaluate_async", status, error)?);
+            return Err(bridge::status_error(
+                "security_trust_evaluate_async",
+                status,
+                error,
+            )?);
         }
         if trusted {
             Ok(())
         } else {
-            let message = bridge::optional_string(error)?.unwrap_or_else(|| "trust evaluation failed".to_owned());
+            let message = bridge::optional_string(error)?
+                .unwrap_or_else(|| "trust evaluation failed".to_owned());
             Err(SecurityError::TrustEvaluationFailed(message))
         }
     }
@@ -245,11 +261,7 @@ impl Trust {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_trust_get_trust_result(
-                self.handle.as_ptr(),
-                &mut status,
-                &mut error,
-            )
+            bridge::security_trust_get_trust_result(self.handle.as_ptr(), &mut status, &mut error)
         };
         if status != 0 {
             return Err(bridge::status_error(
@@ -264,37 +276,47 @@ impl Trust {
     pub fn result(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw = unsafe { bridge::security_trust_copy_result(self.handle.as_ptr(), &mut status, &mut error) };
+        let raw = unsafe {
+            bridge::security_trust_copy_result(self.handle.as_ptr(), &mut status, &mut error)
+        };
         bridge::required_json("security_trust_copy_result", raw, status, error)
     }
 
     pub fn key(&self) -> Result<Option<PublicKey>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw = unsafe { bridge::security_trust_copy_key(self.handle.as_ptr(), &mut status, &mut error) };
+        let raw = unsafe {
+            bridge::security_trust_copy_key(self.handle.as_ptr(), &mut status, &mut error)
+        };
         if status != 0 {
-            return Err(bridge::status_error("security_trust_copy_key", status, error)?);
+            return Err(bridge::status_error(
+                "security_trust_copy_key",
+                status,
+                error,
+            )?);
         }
         Ok(bridge::Handle::from_raw(raw).map(PublicKey::from_handle))
     }
 
     pub fn certificate_count(&self) -> usize {
-        usize::try_from(unsafe { bridge::security_trust_get_certificate_count(self.handle.as_ptr()) })
-            .unwrap_or_default()
+        usize::try_from(unsafe {
+            bridge::security_trust_get_certificate_count(self.handle.as_ptr())
+        })
+        .unwrap_or_default()
     }
 
     pub fn certificate_chain(&self) -> Result<Vec<Certificate>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_trust_copy_certificate_chain(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_trust_copy_certificate_chain(
+                self.handle.as_ptr(),
+                &mut status,
+                &mut error,
+            )
         };
-        let array_handle = bridge::required_handle(
-            "security_trust_copy_certificate_chain",
-            raw,
-            status,
-            error,
-        )?;
+        let array_handle =
+            bridge::required_handle("security_trust_copy_certificate_chain", raw, status, error)?;
         let count = usize::try_from(unsafe {
             bridge::security_certificate_array_get_count(array_handle.as_ptr())
         })
@@ -349,7 +371,11 @@ impl Trust {
             )
         };
         if !error.is_null() {
-            return Err(bridge::status_error("security_trust_set_exceptions", -1, error)?);
+            return Err(bridge::status_error(
+                "security_trust_set_exceptions",
+                -1,
+                error,
+            )?);
         }
         Ok(accepted)
     }
@@ -395,25 +421,34 @@ impl Trust {
     pub fn system_anchor_certificates() -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw = unsafe { bridge::security_trust_copy_anchor_certificates(&mut status, &mut error) };
-        bridge::required_json("security_trust_copy_anchor_certificates", raw, status, error)
+        let raw =
+            unsafe { bridge::security_trust_copy_anchor_certificates(&mut status, &mut error) };
+        bridge::required_json(
+            "security_trust_copy_anchor_certificates",
+            raw,
+            status,
+            error,
+        )
     }
 }
 
 fn decode_trust_date(value: Value) -> Result<SystemTime> {
-    let unix = value
-        .get("unix")
-        .and_then(Value::as_f64)
-        .ok_or_else(|| SecurityError::UnexpectedType {
-            operation: "security_trust_get_verify_time",
-            expected: "date JSON object",
-        })?;
+    let unix =
+        value
+            .get("unix")
+            .and_then(Value::as_f64)
+            .ok_or_else(|| SecurityError::UnexpectedType {
+                operation: "security_trust_get_verify_time",
+                expected: "date JSON object",
+            })?;
     let duration = Duration::from_secs_f64(unix.abs());
     if unix >= 0.0 {
         Ok(UNIX_EPOCH + duration)
     } else {
         UNIX_EPOCH.checked_sub(duration).ok_or_else(|| {
-            SecurityError::InvalidArgument("trust verify time preceded UNIX_EPOCH by too much".to_owned())
+            SecurityError::InvalidArgument(
+                "trust verify time preceded UNIX_EPOCH by too much".to_owned(),
+            )
         })
     }
 }

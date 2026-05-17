@@ -38,11 +38,7 @@ impl PublicKey {
         key::key_external_representation(&self.handle)
     }
 
-    pub fn encrypt(
-        &self,
-        algorithm: EncryptionAlgorithm,
-        plaintext: &[u8],
-    ) -> Result<Vec<u8>> {
+    pub fn encrypt(&self, algorithm: EncryptionAlgorithm, plaintext: &[u8]) -> Result<Vec<u8>> {
         key::encrypt_with_public_key(&self.handle, algorithm, plaintext)
     }
 
@@ -346,7 +342,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_values(
                 self.handle.as_ptr(),
-                keys.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                keys.as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
                 &mut status,
                 &mut error,
             )
@@ -364,7 +361,12 @@ impl Certificate {
                 &mut error,
             )
         };
-        bridge::required_string("security_certificate_copy_long_description", raw, status, error)
+        bridge::required_string(
+            "security_certificate_copy_long_description",
+            raw,
+            status,
+            error,
+        )
     }
 
     pub fn short_description(&self) -> Result<String> {
@@ -377,7 +379,12 @@ impl Certificate {
                 &mut error,
             )
         };
-        bridge::required_string("security_certificate_copy_short_description", raw, status, error)
+        bridge::required_string(
+            "security_certificate_copy_short_description",
+            raw,
+            status,
+            error,
+        )
     }
 
     pub fn preferred(name: &str, key_usage: &[&str]) -> Result<Option<Self>> {
@@ -390,7 +397,9 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_preferred(
                 name.as_ptr(),
-                key_usage.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                key_usage
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
                 &mut status,
                 &mut error,
             )
@@ -404,11 +413,7 @@ impl Certificate {
         }
     }
 
-    pub fn set_preferred(
-        certificate: Option<&Self>,
-        name: &str,
-        key_usage: &[&str],
-    ) -> Result<()> {
+    pub fn set_preferred(certificate: Option<&Self>, name: &str, key_usage: &[&str]) -> Result<()> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())
             .then(|| bridge::json_cstring(&key_usage))
@@ -418,7 +423,9 @@ impl Certificate {
             bridge::security_certificate_set_preferred(
                 certificate.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
                 name.as_ptr(),
-                key_usage.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                key_usage
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
                 &mut error,
             )
         };
