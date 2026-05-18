@@ -18,17 +18,10 @@ pub use access_control::*;
 pub use item::*;
 pub use key::*;
 pub use policy::*;
-
-pub type CFTypeRef = *const c_void;
-pub type CFAllocatorRef = *const c_void;
-pub type CFStringRef = *const c_void;
-pub type CFDataRef = *const c_void;
-pub type CFArrayRef = *const c_void;
-pub type CFDictionaryRef = *const c_void;
-pub type CFMutableDictionaryRef = *mut c_void;
-pub type CFBooleanRef = *const c_void;
-pub type CFNumberRef = *const c_void;
-pub type CFErrorRef = *const c_void;
+pub use apple_cf::raw::{
+    CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef,
+    CFMutableDictionaryRef, CFNumberRef, CFStringRef, CFTypeRef,
+};
 pub type CFIndex = isize;
 pub type CFTypeID = usize;
 pub type CFOptionFlags = usize;
