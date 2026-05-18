@@ -11,25 +11,40 @@ use crate::policy::Policy;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    /// Mirrors signed-attribute bits used by the CMS encoder APIs.
     pub struct CmsSignedAttributes: u32 {
+        /// Mirrors a CMS signed-attribute bit.
         const NONE = 0;
+        /// Mirrors a CMS signed-attribute bit.
         const SMIME_CAPABILITIES = 0x0001;
+        /// Mirrors a CMS signed-attribute bit.
         const SMIME_ENCRYPTION_KEY_PREFS = 0x0002;
+        /// Mirrors a CMS signed-attribute bit.
         const SMIME_MS_ENCRYPTION_KEY_PREFS = 0x0004;
+        /// Mirrors a CMS signed-attribute bit.
         const SIGNING_TIME = 0x0008;
+        /// Mirrors a CMS signed-attribute bit.
         const APPLE_CODESIGNING_HASH_AGILITY = 0x0010;
+        /// Mirrors a CMS signed-attribute bit.
         const APPLE_CODESIGNING_HASH_AGILITY_V2 = 0x0020;
+        /// Mirrors a CMS signed-attribute bit.
         const APPLE_EXPIRATION_TIME = 0x0040;
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u32)]
+/// Mirrors certificate-chain modes used by `CMSEncoder`.
 pub enum CmsCertificateChainMode {
+    /// Mirrors a CMS certificate-chain mode constant.
     None = 0,
+    /// Mirrors a CMS certificate-chain mode constant.
     SignerOnly = 1,
+    /// Mirrors a CMS certificate-chain mode constant.
     Chain = 2,
+    /// Mirrors a CMS certificate-chain mode constant.
     ChainWithRoot = 3,
+    /// Mirrors a CMS certificate-chain mode constant.
     ChainWithRootOrFail = 4,
 }
 
@@ -49,8 +64,11 @@ impl CmsCertificateChainMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Mirrors digest selectors used by `CMSEncoderSetSignerAlgorithm`.
 pub enum CmsDigestAlgorithm {
+    /// Mirrors a CMS digest selector.
     Sha1,
+    /// Mirrors a CMS digest selector.
     Sha256,
 }
 
@@ -64,6 +82,7 @@ impl CmsDigestAlgorithm {
 }
 
 #[derive(Debug)]
+/// Wraps Security.framework CMS decoder state.
 pub struct CmsDecoder {
     handle: bridge::Handle,
 }
@@ -73,10 +92,12 @@ impl CmsDecoder {
         Self { handle }
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_cms_decoder_get_type_id() }
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn update_message(&mut self, data: &[u8]) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -90,6 +111,7 @@ impl CmsDecoder {
         bridge::status_result("security_cms_decoder_update_message", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn finalize_message(&mut self) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -98,6 +120,7 @@ impl CmsDecoder {
         bridge::status_result("security_cms_decoder_finalize_message", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn set_detached_content(&mut self, data: &[u8]) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -111,6 +134,7 @@ impl CmsDecoder {
         bridge::status_result("security_cms_decoder_set_detached_content", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn detached_content(&self) -> Result<Option<Vec<u8>>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -131,6 +155,7 @@ impl CmsDecoder {
         bridge::optional_data(raw)
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn num_signers(&self) -> Result<usize> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -153,6 +178,7 @@ impl CmsDecoder {
         })
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn signer_status(
         &self,
         signer_index: usize,
@@ -179,6 +205,7 @@ impl CmsDecoder {
         )
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn signer_email_address(&self, signer_index: usize) -> Result<Option<String>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -203,6 +230,7 @@ impl CmsDecoder {
         }
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn signer_certificate(&self, signer_index: usize) -> Result<Certificate> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -218,6 +246,7 @@ impl CmsDecoder {
             .map(Certificate::from_handle)
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn is_content_encrypted(&self) -> Result<bool> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -238,6 +267,7 @@ impl CmsDecoder {
         Ok(encrypted)
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn encapsulated_content_type(&self) -> Result<Option<Vec<u8>>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -258,6 +288,7 @@ impl CmsDecoder {
         bridge::optional_data(raw)
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn content(&self) -> Result<Option<Vec<u8>>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -274,6 +305,7 @@ impl CmsDecoder {
         bridge::optional_data(raw)
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn signer_signing_time(&self, signer_index: usize) -> Result<Option<SystemTime>> {
         decode_optional_cms_date("security_cms_decoder_copy_signer_signing_time", unsafe {
             let mut status = 0;
@@ -288,6 +320,7 @@ impl CmsDecoder {
         })
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn signer_timestamp(&self, signer_index: usize) -> Result<Option<SystemTime>> {
         decode_optional_cms_date("security_cms_decoder_copy_signer_timestamp", unsafe {
             let mut status = 0;
@@ -302,6 +335,7 @@ impl CmsDecoder {
         })
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn signer_timestamp_with_policy(
         &self,
         policy: Option<&Policy>,
@@ -324,6 +358,7 @@ impl CmsDecoder {
         )
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn signer_timestamp_certificates(&self, signer_index: usize) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -343,6 +378,7 @@ impl CmsDecoder {
         )
     }
 
+    /// Wraps the corresponding Security.framework CMS decoder operation.
     pub fn all_certificates(&self) -> Result<Vec<Certificate>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -363,6 +399,7 @@ impl CmsDecoder {
 }
 
 #[derive(Debug)]
+/// Wraps Security.framework CMS encoder state.
 pub struct CmsEncoder {
     handle: bridge::Handle,
 }
@@ -372,10 +409,12 @@ impl CmsEncoder {
         Self { handle }
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_cms_encoder_get_type_id() }
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn set_signer_algorithm(&mut self, algorithm: CmsDigestAlgorithm) -> Result<()> {
         let algorithm = bridge::cstring(algorithm.as_bridge_name())?;
         let mut error = std::ptr::null_mut();
@@ -389,6 +428,7 @@ impl CmsEncoder {
         bridge::status_result("security_cms_encoder_set_signer_algorithm", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn add_signers(&mut self, signers: &[Identity]) -> Result<()> {
         let handles = signers.iter().map(Identity::handle).collect::<Vec<_>>();
         let pointers = bridge::handle_pointer_array(&handles);
@@ -404,6 +444,7 @@ impl CmsEncoder {
         bridge::status_result("security_cms_encoder_add_signers", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn signers(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -413,6 +454,7 @@ impl CmsEncoder {
         bridge::required_json("security_cms_encoder_copy_signers", raw, status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn add_recipients(&mut self, recipients: &[Certificate]) -> Result<()> {
         let handles = recipients
             .iter()
@@ -431,6 +473,7 @@ impl CmsEncoder {
         bridge::status_result("security_cms_encoder_add_recipients", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn recipients(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -444,6 +487,7 @@ impl CmsEncoder {
         bridge::required_json("security_cms_encoder_copy_recipients", raw, status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn set_has_detached_content(&mut self, detached_content: bool) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -460,6 +504,7 @@ impl CmsEncoder {
         )
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn has_detached_content(&self) -> Result<bool> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -480,6 +525,7 @@ impl CmsEncoder {
         Ok(detached)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn set_encapsulated_content_type_oid(&mut self, oid: &str) -> Result<()> {
         let oid = bridge::cstring(oid)?;
         let mut error = std::ptr::null_mut();
@@ -497,6 +543,7 @@ impl CmsEncoder {
         )
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn encapsulated_content_type(&self) -> Result<Option<Vec<u8>>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -517,6 +564,7 @@ impl CmsEncoder {
         bridge::optional_data(raw)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn add_supporting_certificates(&mut self, certificates: &[Certificate]) -> Result<()> {
         let handles = certificates
             .iter()
@@ -535,6 +583,7 @@ impl CmsEncoder {
         bridge::status_result("security_cms_encoder_add_supporting_certs", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn supporting_certificates(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -553,6 +602,7 @@ impl CmsEncoder {
         )
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn add_signed_attributes(&mut self, signed_attributes: CmsSignedAttributes) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -565,6 +615,7 @@ impl CmsEncoder {
         bridge::status_result("security_cms_encoder_add_signed_attributes", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn set_certificate_chain_mode(
         &mut self,
         chain_mode: CmsCertificateChainMode,
@@ -584,6 +635,7 @@ impl CmsEncoder {
         )
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn certificate_chain_mode(&self) -> Result<CmsCertificateChainMode> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -604,6 +656,7 @@ impl CmsEncoder {
         CmsCertificateChainMode::from_raw(mode)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn update_content(&mut self, data: &[u8]) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -617,6 +670,7 @@ impl CmsEncoder {
         bridge::status_result("security_cms_encoder_update_content", status, error)
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn encoded_content(&self) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -635,6 +689,7 @@ impl CmsEncoder {
         )
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn signer_timestamp(&self, signer_index: usize) -> Result<Option<SystemTime>> {
         decode_optional_cms_date("security_cms_encoder_copy_signer_timestamp", unsafe {
             let mut status = 0;
@@ -649,6 +704,7 @@ impl CmsEncoder {
         })
     }
 
+    /// Wraps the corresponding Security.framework CMS encoder operation.
     pub fn signer_timestamp_with_policy(
         &self,
         policy: Option<&Policy>,
@@ -672,9 +728,11 @@ impl CmsEncoder {
     }
 }
 
+/// Wraps convenience helpers around Security.framework CMS APIs.
 pub struct Cms;
 
 impl Cms {
+    /// Wraps the corresponding Security.framework CMS helper.
     pub fn encoder() -> Result<CmsEncoder> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -683,6 +741,7 @@ impl Cms {
             .map(CmsEncoder::from_handle)
     }
 
+    /// Wraps the corresponding Security.framework CMS helper.
     pub fn decoder() -> Result<CmsDecoder> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -691,12 +750,14 @@ impl Cms {
             .map(CmsDecoder::from_handle)
     }
 
+    /// Wraps the corresponding Security.framework CMS helper.
     pub fn encode_supporting_certificates(certificates: &[Certificate]) -> Result<Vec<u8>> {
         let mut encoder = Self::encoder()?;
         encoder.add_supporting_certificates(certificates)?;
         encoder.encoded_content()
     }
 
+    /// Wraps the corresponding Security.framework CMS helper.
     pub fn decode_all_certificates(data: &[u8]) -> Result<Vec<Certificate>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -737,6 +798,7 @@ impl Cms {
         Ok(certificates)
     }
 
+    /// Wraps the corresponding Security.framework CMS helper.
     pub fn encode_content(
         signers: &[Identity],
         recipients: &[Certificate],

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.2] - 2026-05-18
+
+### Changed
+
+- Add one-line rustdoc coverage across the public safe API surface, with Security.framework counterpart references for the documented wrappers.
+
 ## [0.4.1] - 2026-05-18
 
 ### Changed

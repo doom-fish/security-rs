@@ -4,15 +4,18 @@ use crate::bridge;
 use crate::error::Result;
 
 #[derive(Debug)]
+/// Wraps derived key material backed by `SecKeyRef`.
 pub struct DerivedKey {
     handle: bridge::Handle,
 }
 
 impl DerivedKey {
+    /// Wraps the corresponding derived-key `SecKeyRef` operation.
     pub fn type_id() -> usize {
         crate::key::key_type_id()
     }
 
+    /// Wraps the corresponding derived-key `SecKeyRef` operation.
     pub fn attributes(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -23,9 +26,11 @@ impl DerivedKey {
     }
 }
 
+/// Wraps password-based key-derivation helpers in Security.framework.
 pub struct KeyDerivation;
 
 impl KeyDerivation {
+    /// Wraps the corresponding Security.framework key-derivation operation.
     pub fn derive_pbkdf2_sha256(
         password: &str,
         salt: &[u8],

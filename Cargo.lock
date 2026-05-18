@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "security-rs"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "apple-cf",
  "base64",

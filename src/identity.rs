@@ -6,6 +6,7 @@ use crate::error::Result;
 use crate::key::PrivateKey;
 
 #[derive(Debug)]
+/// Wraps `SecIdentityRef`.
 pub struct Identity {
     handle: bridge::Handle,
 }
@@ -19,10 +20,12 @@ impl Identity {
         &self.handle
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_identity_get_type_id() }
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn import_pkcs12_first(data: &[u8], password: &str) -> Result<Self> {
         let password = bridge::cstring(password)?;
         let mut status = 0;
@@ -40,6 +43,7 @@ impl Identity {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn from_certificate_and_private_key(
         certificate: &Certificate,
         private_key: &PrivateKey,
@@ -58,6 +62,7 @@ impl Identity {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn with_certificate(certificate: &Certificate) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -77,6 +82,7 @@ impl Identity {
         .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn preferred(
         name: &str,
         key_usage: &[&str],
@@ -113,6 +119,7 @@ impl Identity {
         }
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn set_preferred(identity: Option<&Self>, name: &str, key_usage: &[&str]) -> Result<()> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())
@@ -132,6 +139,7 @@ impl Identity {
         bridge::status_result("security_identity_set_preferred", status, error)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn copy_system_identity(domain: &str) -> Result<Self> {
         let domain = bridge::cstring(domain)?;
         let mut status = 0;
@@ -143,6 +151,7 @@ impl Identity {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn set_system_identity(domain: &str, identity: Option<&Self>) -> Result<()> {
         let domain = bridge::cstring(domain)?;
         let mut error = std::ptr::null_mut();
@@ -156,21 +165,25 @@ impl Identity {
         bridge::status_result("security_identity_set_system_identity", status, error)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn actual_domain(&self) -> Result<Option<String>> {
         let raw = unsafe { bridge::security_identity_copy_actual_domain(self.handle.as_ptr()) };
         bridge::optional_string(raw)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn label(&self) -> Result<Option<String>> {
         let raw = unsafe { bridge::security_identity_copy_label(self.handle.as_ptr()) };
         bridge::optional_string(raw)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn chain_count(&self) -> usize {
         usize::try_from(unsafe { bridge::security_identity_get_chain_count(self.handle.as_ptr()) })
             .unwrap_or_default()
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn certificate(&self) -> Result<Certificate> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -185,6 +198,7 @@ impl Identity {
             .map(Certificate::from_handle)
     }
 
+    /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn private_key_attributes(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();

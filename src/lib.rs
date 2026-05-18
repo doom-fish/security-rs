@@ -19,26 +19,43 @@
     clippy::unnecessary_lazy_evaluations
 )]
 
+/// Safe wrappers for Authorization Services APIs in Security.framework.
 pub mod authorization;
 mod bridge;
+/// Safe wrappers for `SecCertificateRef` and public-key APIs in Security.framework.
 pub mod certificate;
+/// Safe wrappers for CMS encoder and decoder APIs in Security.framework.
 pub mod cms;
+/// Safe wrappers for code-signing APIs such as `SecCodeRef` and `SecTaskRef`.
 pub mod code;
+/// Re-exports code-signing wrappers built on Security.framework.
 pub mod code_signing;
+/// Error types used by the Security.framework wrappers.
 pub mod error;
 #[cfg(feature = "raw-ffi")]
 #[cfg_attr(docsrs, doc(cfg(feature = "raw-ffi")))]
 pub mod ffi;
+/// Safe wrappers for `SecIdentityRef`.
 pub mod identity;
+/// Safe wrappers for `SecKeyRef` algorithms and private-key APIs.
 pub mod key;
+/// Safe wrappers for `SecKeyRef` key-agreement APIs.
 pub mod key_agreement;
+/// Safe wrappers for password-based key-derivation APIs in Security.framework.
 pub mod key_derivation;
+/// Safe wrappers for keychain and access-control APIs in Security.framework.
 pub mod keychain;
+/// Safe wrappers for `SecPolicyRef` and policy configuration APIs.
 pub mod policy;
+/// Re-exports secure-random wrappers built on `SecRandomCopyBytes`.
 pub mod random;
+/// Safe wrappers for `SecRandomCopyBytes`.
 pub mod random_bytes;
+/// Safe wrappers for Secure Transport session APIs in Security.framework.
 pub mod secure_transport;
+/// Safe wrappers for Security Transforms APIs.
 pub mod transform;
+/// Safe wrappers for `SecTrustRef` and trust-evaluation APIs.
 pub mod trust;
 
 pub use authorization::{Authorization, AuthorizationOptions};

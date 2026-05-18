@@ -1,9 +1,11 @@
 use crate::bridge;
 use crate::error::{Result, SecurityError};
 
+/// Wraps Security Transforms helpers.
 pub struct Transform;
 
 impl Transform {
+    /// Wraps the corresponding Security Transforms operation.
     pub fn encode_base64(input: &[u8]) -> Result<String> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -23,6 +25,7 @@ impl Transform {
         })
     }
 
+    /// Wraps the corresponding Security Transforms operation.
     pub fn decode_base64(input: &[u8]) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();

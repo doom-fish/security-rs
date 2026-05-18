@@ -9,67 +9,105 @@ use crate::error::Result;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    /// Mirrors `SecCSFlags`.
     pub struct CodeSigningFlags: u32 {
+        /// Mirrors a `SecCSFlags` bit.
         const CHECK_ALL_ARCHITECTURES = 1 << 0;
+        /// Mirrors a `SecCSFlags` bit.
         const DO_NOT_VALIDATE_EXECUTABLE = 1 << 1;
+        /// Mirrors a `SecCSFlags` bit.
         const DO_NOT_VALIDATE_RESOURCES = 1 << 2;
+        /// Mirrors a `SecCSFlags` bit.
         const BASIC_VALIDATE_ONLY = Self::DO_NOT_VALIDATE_EXECUTABLE.bits() | Self::DO_NOT_VALIDATE_RESOURCES.bits();
+        /// Mirrors a `SecCSFlags` bit.
         const CHECK_NESTED_CODE = 1 << 3;
+        /// Mirrors a `SecCSFlags` bit.
         const STRICT_VALIDATE = 1 << 4;
+        /// Mirrors a `SecCSFlags` bit.
         const FULL_REPORT = 1 << 5;
+        /// Mirrors a `SecCSFlags` bit.
         const CHECK_GATEKEEPER_ARCHITECTURES = (1 << 6) | Self::CHECK_ALL_ARCHITECTURES.bits();
+        /// Mirrors a `SecCSFlags` bit.
         const RESTRICT_SYMLINKS = 1 << 7;
+        /// Mirrors a `SecCSFlags` bit.
         const RESTRICT_TO_APP_LIKE = 1 << 8;
+        /// Mirrors a `SecCSFlags` bit.
         const RESTRICT_SIDEBAND_DATA = 1 << 9;
+        /// Mirrors a `SecCSFlags` bit.
         const USE_SOFTWARE_SIGNING_CERT = 1 << 10;
+        /// Mirrors a `SecCSFlags` bit.
         const VALIDATE_PEH = 1 << 11;
+        /// Mirrors a `SecCSFlags` bit.
         const SINGLE_THREADED = 1 << 12;
+        /// Mirrors a `SecCSFlags` bit.
         const ALLOW_NETWORK_ACCESS = 1 << 16;
+        /// Mirrors a `SecCSFlags` bit.
         const FAST_EXECUTABLE_VALIDATION = 1 << 17;
 
+        /// Mirrors a `SecCSFlags` bit.
         const SIGNING_INFORMATION = 1 << 1;
+        /// Mirrors a `SecCSFlags` bit.
         const DYNAMIC_INFORMATION = 1 << 3;
+        /// Mirrors a `SecCSFlags` bit.
         const USE_ALL_ARCHITECTURES = 1 << 0;
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
+/// Mirrors values returned by `SecCodeCopySigningInformation`.
 pub enum SigningValue {
+    /// Mirrors a value decoded from `SecCodeCopySigningInformation`.
     Boolean(bool),
+    /// Mirrors a value decoded from `SecCodeCopySigningInformation`.
     Integer(i64),
+    /// Mirrors a value decoded from `SecCodeCopySigningInformation`.
     String(String),
+    /// Mirrors a value decoded from `SecCodeCopySigningInformation`.
     Data(Vec<u8>),
+    /// Mirrors a value decoded from `SecCodeCopySigningInformation`.
     Array(Vec<Self>),
+    /// Mirrors a value decoded from `SecCodeCopySigningInformation`.
     Dictionary(BTreeMap<String, Self>),
+    /// Mirrors a value decoded from `SecCodeCopySigningInformation`.
     Unknown(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Mirrors structured data returned by `SecCodeCopySigningInformation`.
 pub struct SigningInformation {
+    /// Mirrors a field returned by `SecCodeCopySigningInformation`.
     pub identifier: Option<String>,
+    /// Mirrors a field returned by `SecCodeCopySigningInformation`.
     pub team_identifier: Option<String>,
+    /// Mirrors a field returned by `SecCodeCopySigningInformation`.
     pub entitlements: BTreeMap<String, SigningValue>,
+    /// Mirrors a field returned by `SecCodeCopySigningInformation`.
     pub sandboxed: bool,
+    /// Mirrors a field returned by `SecCodeCopySigningInformation`.
     pub status: Option<u32>,
 }
 
 impl SigningInformation {
+    /// Wraps the corresponding Security.framework operation for `SigningInformation`.
     pub const fn is_signed(&self) -> bool {
         self.identifier.is_some()
     }
 }
 
 #[derive(Debug)]
+/// Wraps `SecCodeRef`.
 pub struct Code {
     handle: bridge::Handle,
 }
 
 impl Code {
+    /// Wraps the corresponding `SecCodeRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_code_get_type_id() }
     }
 
+    /// Wraps the corresponding `SecCodeRef` operation.
     pub fn current() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -78,6 +116,7 @@ impl Code {
             .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding `SecCodeRef` operation.
     pub fn host(&self) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -88,6 +127,7 @@ impl Code {
             .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding `SecCodeRef` operation.
     pub fn guest_with_attributes(
         host: Option<&Self>,
         attributes: Option<&Value>,
@@ -116,6 +156,7 @@ impl Code {
         .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding `SecCodeRef` operation.
     pub fn static_code(&self) -> Result<StaticCode> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -126,16 +167,19 @@ impl Code {
             .map(StaticCode::from_handle)
     }
 
+    /// Wraps the corresponding `SecCodeRef` operation.
     pub fn signing_information(&self) -> Result<SigningInformation> {
         self.static_code()?.signing_information()
     }
 
+    /// Wraps the corresponding `SecCodeRef` operation.
     pub fn task(&self) -> Result<Task> {
         Task::current()
     }
 }
 
 #[derive(Debug)]
+/// Wraps `SecRequirementRef`.
 pub struct Requirement {
     handle: bridge::Handle,
 }
@@ -149,10 +193,12 @@ impl Requirement {
         &self.handle
     }
 
+    /// Wraps the corresponding `SecRequirementRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_requirement_get_type_id() }
     }
 
+    /// Wraps the corresponding `SecRequirementRef` operation.
     pub fn from_data(data: &[u8]) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -168,6 +214,7 @@ impl Requirement {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecRequirementRef` operation.
     pub fn from_string(text: &str) -> Result<Self> {
         let text = bridge::cstring(text)?;
         let mut status = 0;
@@ -184,6 +231,7 @@ impl Requirement {
         .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecRequirementRef` operation.
     pub fn from_string_with_errors(text: &str) -> Result<Self> {
         let text = bridge::cstring(text)?;
         let mut status = 0;
@@ -204,6 +252,7 @@ impl Requirement {
         .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecRequirementRef` operation.
     pub fn data(&self) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -213,6 +262,7 @@ impl Requirement {
         bridge::required_data("security_requirement_copy_data", raw, status, error)
     }
 
+    /// Wraps the corresponding `SecRequirementRef` operation.
     pub fn string(&self) -> Result<String> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -224,6 +274,7 @@ impl Requirement {
 }
 
 #[derive(Debug)]
+/// Wraps `SecStaticCodeRef`.
 pub struct StaticCode {
     handle: bridge::Handle,
 }
@@ -233,10 +284,12 @@ impl StaticCode {
         Self { handle }
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_static_code_get_type_id() }
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = bridge::cstring(&path.as_ref().to_string_lossy())?;
         let mut status = 0;
@@ -248,6 +301,7 @@ impl StaticCode {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn from_path_with_attributes(path: impl AsRef<Path>, attributes: &Value) -> Result<Self> {
         let path = bridge::cstring(&path.as_ref().to_string_lossy())?;
         let attributes = bridge::json_cstring(attributes)?;
@@ -270,6 +324,7 @@ impl StaticCode {
         .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn check_validity(&self) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -278,6 +333,7 @@ impl StaticCode {
         bridge::status_result("security_static_code_check_validity", status, error)
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn check_validity_with_errors(
         &self,
         flags: CodeSigningFlags,
@@ -299,6 +355,7 @@ impl StaticCode {
         )
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn check_static_validity(
         &self,
         flags: CodeSigningFlags,
@@ -316,6 +373,7 @@ impl StaticCode {
         bridge::status_result("security_static_code_check_static_validity", status, error)
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn check_static_validity_with_errors(
         &self,
         flags: CodeSigningFlags,
@@ -337,6 +395,7 @@ impl StaticCode {
         )
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn path(&self) -> Result<PathBuf> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -347,6 +406,7 @@ impl StaticCode {
             .map(PathBuf::from)
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn designated_requirement(&self) -> Result<String> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -365,6 +425,7 @@ impl StaticCode {
         )
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn signing_information(&self) -> Result<SigningInformation> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -413,6 +474,7 @@ impl StaticCode {
         })
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn validate_file_resource(
         &self,
         relative_path: &str,
@@ -434,6 +496,7 @@ impl StaticCode {
         bridge::status_result("security_static_code_validate_file_resource", status, error)
     }
 
+    /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn map_memory(&self, flags: CodeSigningFlags) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -444,15 +507,18 @@ impl StaticCode {
 }
 
 #[derive(Debug)]
+/// Wraps `SecTaskRef`.
 pub struct Task {
     handle: bridge::Handle,
 }
 
 impl Task {
+    /// Wraps the corresponding `SecTaskRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_task_get_type_id() }
     }
 
+    /// Wraps the corresponding `SecTaskRef` operation.
     pub fn current() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -461,6 +527,7 @@ impl Task {
             .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding `SecTaskRef` operation.
     pub fn current_with_audit_token() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -476,6 +543,7 @@ impl Task {
         .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding `SecTaskRef` operation.
     pub fn signing_identifier(&self) -> Result<Option<String>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -494,6 +562,7 @@ impl Task {
         }
     }
 
+    /// Wraps the corresponding `SecTaskRef` operation.
     pub fn entitlement(&self, entitlement: &str) -> Result<Option<Value>> {
         let entitlement = bridge::cstring(entitlement)?;
         let mut status = 0;
@@ -518,6 +587,7 @@ impl Task {
         Ok(Some(value))
     }
 
+    /// Wraps the corresponding `SecTaskRef` operation.
     pub fn entitlements(&self, entitlements: &[&str]) -> Result<Value> {
         let entitlements = bridge::json_cstring(&entitlements)?;
         let mut status = 0;

@@ -10,27 +10,44 @@ pub use crate::policy::Policy;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    /// Mirrors `SecTrustOptionFlags`.
     pub struct TrustOptions: u32 {
+        /// Mirrors a `SecTrustOptionFlags` bit.
         const ALLOW_EXPIRED = 0x0000_0001;
+        /// Mirrors a `SecTrustOptionFlags` bit.
         const LEAF_IS_CA = 0x0000_0002;
+        /// Mirrors a `SecTrustOptionFlags` bit.
         const FETCH_ISSUER_FROM_NET = 0x0000_0004;
+        /// Mirrors a `SecTrustOptionFlags` bit.
         const ALLOW_EXPIRED_ROOT = 0x0000_0008;
+        /// Mirrors a `SecTrustOptionFlags` bit.
         const REQUIRE_REVOCATION_PER_CERT = 0x0000_0010;
+        /// Mirrors a `SecTrustOptionFlags` bit.
         const USE_TRUST_SETTINGS = 0x0000_0020;
+        /// Mirrors a `SecTrustOptionFlags` bit.
         const IMPLICIT_ANCHORS = 0x0000_0040;
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u32)]
+/// Mirrors `SecTrustResultType`.
 pub enum TrustResultType {
+    /// Mirrors a `SecTrustResultType` constant.
     Invalid = 0,
+    /// Mirrors a `SecTrustResultType` constant.
     Proceed = 1,
+    /// Mirrors a `SecTrustResultType` constant.
     Confirm = 2,
+    /// Mirrors a `SecTrustResultType` constant.
     Deny = 3,
+    /// Mirrors a `SecTrustResultType` constant.
     Unspecified = 4,
+    /// Mirrors a `SecTrustResultType` constant.
     RecoverableTrustFailure = 5,
+    /// Mirrors a `SecTrustResultType` constant.
     FatalTrustFailure = 6,
+    /// Mirrors a `SecTrustResultType` constant.
     OtherError = 7,
 }
 
@@ -53,19 +70,23 @@ impl TrustResultType {
 }
 
 #[derive(Debug)]
+/// Wraps `SecTrustRef`.
 pub struct Trust {
     handle: bridge::Handle,
 }
 
 impl Trust {
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_trust_get_type_id() }
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn new(certificate: &Certificate, policies: &[Policy]) -> Result<Self> {
         Self::from_certificates(std::slice::from_ref(certificate), policies)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn from_certificates(certificates: &[Certificate], policies: &[Policy]) -> Result<Self> {
         let certificate_handles = certificates
             .iter()
@@ -90,6 +111,7 @@ impl Trust {
             .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_policies(&mut self, policies: &[Policy]) -> Result<()> {
         let policy_handles = policies.iter().map(Policy::handle).collect::<Vec<_>>();
         let pointers = bridge::handle_pointer_array(&policy_handles);
@@ -105,6 +127,7 @@ impl Trust {
         bridge::status_result("security_trust_set_policies", status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn policies(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -114,6 +137,7 @@ impl Trust {
         bridge::required_json("security_trust_copy_policies", raw, status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_anchor_certificates(&mut self, certificates: &[Certificate]) -> Result<()> {
         let certificate_handles = certificates
             .iter()
@@ -132,6 +156,7 @@ impl Trust {
         bridge::status_result("security_trust_set_anchor_certificates", status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn custom_anchor_certificates(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -150,6 +175,7 @@ impl Trust {
         )
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_anchor_certificates_only(&mut self, only_anchor_certificates: bool) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -162,6 +188,7 @@ impl Trust {
         bridge::status_result("security_trust_set_anchor_certificates_only", status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_network_fetch_allowed(&mut self, allowed: bool) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -174,6 +201,7 @@ impl Trust {
         bridge::status_result("security_trust_set_network_fetch_allowed", status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn network_fetch_allowed(&self) -> Result<bool> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -194,6 +222,7 @@ impl Trust {
         Ok(allowed)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_verify_date(&mut self, verify_date: SystemTime) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -206,6 +235,7 @@ impl Trust {
         bridge::status_result("security_trust_set_verify_date", status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn verify_time(&self) -> Result<Option<SystemTime>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -223,6 +253,7 @@ impl Trust {
             .map_or(Ok(None), |value| decode_trust_date(value).map(Some))
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn evaluate(&self) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let trusted = unsafe { bridge::security_trust_evaluate(self.handle.as_ptr(), &mut error) };
@@ -235,6 +266,7 @@ impl Trust {
         }
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn evaluate_async(&self) -> Result<()> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -257,6 +289,7 @@ impl Trust {
         }
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn trust_result_type(&self) -> Result<TrustResultType> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -273,6 +306,7 @@ impl Trust {
         TrustResultType::from_raw(raw)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn result(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -282,6 +316,7 @@ impl Trust {
         bridge::required_json("security_trust_copy_result", raw, status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn key(&self) -> Result<Option<PublicKey>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -298,6 +333,7 @@ impl Trust {
         Ok(bridge::Handle::from_raw(raw).map(PublicKey::from_handle))
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn certificate_count(&self) -> usize {
         usize::try_from(unsafe {
             bridge::security_trust_get_certificate_count(self.handle.as_ptr())
@@ -305,6 +341,7 @@ impl Trust {
         .unwrap_or_default()
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn certificate_chain(&self) -> Result<Vec<Certificate>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -344,6 +381,7 @@ impl Trust {
         Ok(certificates)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn exceptions(&self) -> Result<Option<Vec<u8>>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -360,6 +398,7 @@ impl Trust {
         bridge::optional_data(raw)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_exceptions(&mut self, exceptions: Option<&[u8]>) -> Result<bool> {
         let mut error = std::ptr::null_mut();
         let accepted = unsafe {
@@ -380,6 +419,7 @@ impl Trust {
         Ok(accepted)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_ocsp_responses(&mut self, responses: &[Vec<u8>]) -> Result<()> {
         let responses = bridge::json_cstring(&responses)?;
         let mut error = std::ptr::null_mut();
@@ -393,6 +433,7 @@ impl Trust {
         bridge::status_result("security_trust_set_ocsp_response", status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_signed_certificate_timestamps(&mut self, timestamps: &[Vec<u8>]) -> Result<()> {
         let timestamps = bridge::json_cstring(&timestamps)?;
         let mut error = std::ptr::null_mut();
@@ -410,6 +451,7 @@ impl Trust {
         )
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_options(&mut self, options: TrustOptions) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -418,6 +460,7 @@ impl Trust {
         bridge::status_result("security_trust_set_options", status, error)
     }
 
+    /// Wraps the corresponding `SecTrustRef` operation.
     pub fn system_anchor_certificates() -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();

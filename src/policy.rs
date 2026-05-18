@@ -4,29 +4,51 @@ use serde_json::Value;
 use crate::bridge::{self, Handle};
 use crate::error::{Result, SecurityError};
 
+/// Mirrors `SecRevocationFlags`.
 pub type RevocationFlags = u32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Mirrors named `SecPolicyCreate*` policy selectors.
 pub enum PolicyIdentifier {
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleX509Basic,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleSsl,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleSmime,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleEap,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleIpsec,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     ApplePkinitClient,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     ApplePkinitServer,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleCodeSigning,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     MacAppStoreReceipt,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleIdValidation,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleTimeStamping,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleRevocation,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     ApplePassbookSigning,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     ApplePayIssuerEncryption,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleSslServer,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleSslClient,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleEapServer,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleEapClient,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleIpsecServer,
+    /// Mirrors a named `SecPolicyCreate*` selector.
     AppleIpsecClient,
 }
 
@@ -59,8 +81,11 @@ impl PolicyIdentifier {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
+/// Mirrors name inputs passed to `SecPolicyCreateWithProperties`.
 pub enum PolicyName {
+    /// Mirrors a name form accepted by `SecPolicyCreateWithProperties`.
     Single(String),
+    /// Mirrors a name form accepted by `SecPolicyCreateWithProperties`.
     Multiple(Vec<String>),
 }
 
@@ -77,14 +102,19 @@ impl From<&str> for PolicyName {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+/// Mirrors the property dictionary passed to `SecPolicyCreateWithProperties`.
 pub struct PolicyProperties {
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Mirrors a property accepted by `SecPolicyCreateWithProperties`.
     pub name: Option<PolicyName>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Mirrors a property accepted by `SecPolicyCreateWithProperties`.
     pub client: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Mirrors a property accepted by `SecPolicyCreateWithProperties`.
     pub revocation_flags: Option<RevocationFlags>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Mirrors a property accepted by `SecPolicyCreateWithProperties`.
     pub team_identifier: Option<String>,
 }
 
@@ -98,11 +128,13 @@ impl PolicyProperties {
 }
 
 #[derive(Debug)]
+/// Wraps `SecPolicyRef`.
 pub struct Policy {
     handle: Handle,
 }
 
 impl Policy {
+    /// Wraps the corresponding `SecPolicyRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_policy_get_type_id() }
     }
@@ -115,6 +147,7 @@ impl Policy {
         &self.handle
     }
 
+    /// Wraps the corresponding `SecPolicyRef` operation.
     pub fn basic_x509() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -123,6 +156,7 @@ impl Policy {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecPolicyRef` operation.
     pub fn ssl(server: bool, hostname: Option<&str>) -> Result<Self> {
         let hostname = hostname.map(bridge::cstring).transpose()?;
         let mut status = 0;
@@ -141,6 +175,7 @@ impl Policy {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecPolicyRef` operation.
     pub fn revocation(flags: RevocationFlags) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -150,6 +185,7 @@ impl Policy {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecPolicyRef` operation.
     pub fn with_properties(
         identifier: PolicyIdentifier,
         properties: &PolicyProperties,
@@ -179,6 +215,7 @@ impl Policy {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecPolicyRef` operation.
     pub fn properties(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();

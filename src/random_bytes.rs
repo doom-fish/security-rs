@@ -1,9 +1,11 @@
 use crate::bridge;
 use crate::error::Result;
 
+/// Wraps `SecRandomCopyBytes`.
 pub struct SecureRandom;
 
 impl SecureRandom {
+    /// Wraps the corresponding `SecRandomCopyBytes` operation.
     pub fn fill(buffer: &mut [u8]) -> Result<()> {
         if buffer.is_empty() {
             return Ok(());
@@ -19,6 +21,7 @@ impl SecureRandom {
         bridge::status_result("security_random_fill", status, error)
     }
 
+    /// Wraps the corresponding `SecRandomCopyBytes` operation.
     pub fn bytes(length: usize) -> Result<Vec<u8>> {
         let mut bytes = vec![0_u8; length];
         Self::fill(&mut bytes)?;

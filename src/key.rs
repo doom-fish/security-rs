@@ -6,66 +6,111 @@ use crate::error::Result;
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Mirrors `SecExternalFormat`.
 pub enum ExternalFormat {
+    /// Mirrors a `SecExternalFormat` constant.
     Unknown = 0,
+    /// Mirrors a `SecExternalFormat` constant.
     OpenSsl = 1,
+    /// Mirrors a `SecExternalFormat` constant.
     Ssh = 2,
+    /// Mirrors a `SecExternalFormat` constant.
     Bsafe = 3,
+    /// Mirrors a `SecExternalFormat` constant.
     RawKey = 4,
+    /// Mirrors a `SecExternalFormat` constant.
     WrappedPkcs8 = 5,
+    /// Mirrors a `SecExternalFormat` constant.
     WrappedOpenSsl = 6,
+    /// Mirrors a `SecExternalFormat` constant.
     WrappedSsh = 7,
+    /// Mirrors a `SecExternalFormat` constant.
     WrappedLsh = 8,
+    /// Mirrors a `SecExternalFormat` constant.
     X509Certificate = 9,
+    /// Mirrors a `SecExternalFormat` constant.
     PemSequence = 10,
+    /// Mirrors a `SecExternalFormat` constant.
     Pkcs7 = 11,
+    /// Mirrors a `SecExternalFormat` constant.
     Pkcs12 = 12,
+    /// Mirrors a `SecExternalFormat` constant.
     NetscapeCertificateSequence = 13,
+    /// Mirrors a `SecExternalFormat` constant.
     SshV2 = 14,
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Mirrors `SecExternalItemType`.
 pub enum ExternalItemType {
+    /// Mirrors a `SecExternalItemType` constant.
     Unknown = 0,
+    /// Mirrors a `SecExternalItemType` constant.
     PrivateKey = 1,
+    /// Mirrors a `SecExternalItemType` constant.
     PublicKey = 2,
+    /// Mirrors a `SecExternalItemType` constant.
     SessionKey = 3,
+    /// Mirrors a `SecExternalItemType` constant.
     Certificate = 4,
+    /// Mirrors a `SecExternalItemType` constant.
     Aggregate = 5,
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Mirrors key-type selectors used with `SecKeyCreateWithData`.
 pub enum KeyType {
+    /// Mirrors a Security.framework key-type selector.
     Rsa = 0,
+    /// Mirrors a Security.framework key-type selector.
     EcSecPrimeRandom = 1,
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Mirrors signing cases from `SecKeyAlgorithm`.
 pub enum SignatureAlgorithm {
+    /// Mirrors a `SecKeyAlgorithm` signing constant.
     RsaSignatureMessagePkcs1v15Sha256 = 0,
+    /// Mirrors a `SecKeyAlgorithm` signing constant.
     RsaSignatureDigestPkcs1v15Sha256 = 1,
+    /// Mirrors a `SecKeyAlgorithm` signing constant.
     RsaSignatureMessagePssSha256 = 2,
+    /// Mirrors a `SecKeyAlgorithm` signing constant.
     EcdsaSignatureMessageX962Sha256 = 3,
+    /// Mirrors a `SecKeyAlgorithm` signing constant.
     EcdsaSignatureDigestX962Sha256 = 4,
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Mirrors encryption cases from `SecKeyAlgorithm`.
 pub enum EncryptionAlgorithm {
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionRaw = 0,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionPkcs1 = 1,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha1 = 2,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha224 = 3,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha256 = 4,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha384 = 5,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha512 = 6,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha1AesGcm = 7,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha224AesGcm = 8,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha256AesGcm = 9,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha384AesGcm = 10,
+    /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha512AesGcm = 11,
 }
 
@@ -143,11 +188,13 @@ pub(crate) fn decrypt_with_private_key(
 }
 
 #[derive(Debug)]
+/// Wraps a private `SecKeyRef`.
 pub struct PrivateKey {
     handle: Handle,
 }
 
 impl PrivateKey {
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn type_id() -> usize {
         key_type_id()
     }
@@ -160,6 +207,7 @@ impl PrivateKey {
         &self.handle
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn from_data(data: &[u8], key_type: KeyType, key_size_bits: usize) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -177,6 +225,7 @@ impl PrivateKey {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn import_item(
         data: &[u8],
         file_name_or_extension: Option<&str>,
@@ -203,6 +252,7 @@ impl PrivateKey {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn import_pem(pem: &[u8]) -> Result<Self> {
         Self::import_item(
             pem,
@@ -212,6 +262,7 @@ impl PrivateKey {
         )
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn public_key(&self) -> Result<PublicKey> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -222,6 +273,7 @@ impl PrivateKey {
             .map(PublicKey::from_handle)
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn attributes(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -231,14 +283,17 @@ impl PrivateKey {
         bridge::required_json("security_key_copy_attributes", raw, status, error)
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn block_size(&self) -> usize {
         key_block_size(&self.handle)
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn external_representation(&self) -> Result<Vec<u8>> {
         key_external_representation(&self.handle)
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn sign(&self, algorithm: SignatureAlgorithm, data: &[u8]) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -255,6 +310,7 @@ impl PrivateKey {
         bridge::required_data("security_private_key_create_signature", raw, status, error)
     }
 
+    /// Wraps the corresponding private `SecKeyRef` operation.
     pub fn decrypt(&self, algorithm: EncryptionAlgorithm, ciphertext: &[u8]) -> Result<Vec<u8>> {
         decrypt_with_private_key(&self.handle, algorithm, ciphertext)
     }

@@ -14,9 +14,13 @@ pub type OsStatus = i32;
 pub mod status {
     use super::OsStatus;
 
+    /// Mirrors a common `OSStatus` value from Security.framework.
     pub const SUCCESS: OsStatus = 0;
+    /// Mirrors a common `OSStatus` value from Security.framework.
     pub const DUPLICATE_ITEM: OsStatus = -25_299;
+    /// Mirrors a common `OSStatus` value from Security.framework.
     pub const ITEM_NOT_FOUND: OsStatus = -25_300;
+    /// Mirrors a common `OSStatus` value from Security.framework.
     pub const INTERACTION_NOT_ALLOWED: OsStatus = -25_308;
 }
 
@@ -74,6 +78,7 @@ pub enum SecurityError {
 
 impl SecurityError {
     #[must_use]
+    /// Returns the underlying `OSStatus` when Security.framework provided one.
     pub const fn code(&self) -> Option<OsStatus> {
         match self {
             Self::ItemNotFound(_) => Some(status::ITEM_NOT_FOUND),

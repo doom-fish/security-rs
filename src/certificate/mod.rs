@@ -8,11 +8,13 @@ use crate::error::{Result, SecurityError};
 use crate::key::{self, EncryptionAlgorithm, ExternalFormat, ExternalItemType, SignatureAlgorithm};
 
 #[derive(Debug)]
+/// Wraps a public `SecKeyRef`.
 pub struct PublicKey {
     handle: Handle,
 }
 
 impl PublicKey {
+    /// Wraps the corresponding public `SecKeyRef` operation.
     pub fn type_id() -> usize {
         key::key_type_id()
     }
@@ -21,6 +23,7 @@ impl PublicKey {
         Self { handle }
     }
 
+    /// Wraps the corresponding public `SecKeyRef` operation.
     pub fn attributes(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -30,18 +33,22 @@ impl PublicKey {
         bridge::required_json("security_key_copy_attributes", raw, status, error)
     }
 
+    /// Wraps the corresponding public `SecKeyRef` operation.
     pub fn block_size(&self) -> usize {
         key::key_block_size(&self.handle)
     }
 
+    /// Wraps the corresponding public `SecKeyRef` operation.
     pub fn external_representation(&self) -> Result<Vec<u8>> {
         key::key_external_representation(&self.handle)
     }
 
+    /// Wraps the corresponding public `SecKeyRef` operation.
     pub fn encrypt(&self, algorithm: EncryptionAlgorithm, plaintext: &[u8]) -> Result<Vec<u8>> {
         key::encrypt_with_public_key(&self.handle, algorithm, plaintext)
     }
 
+    /// Wraps the corresponding public `SecKeyRef` operation.
     pub fn verify_signature(
         &self,
         algorithm: SignatureAlgorithm,
@@ -74,6 +81,7 @@ impl PublicKey {
 }
 
 #[derive(Debug)]
+/// Wraps `SecCertificateRef`.
 pub struct Certificate {
     handle: Handle,
 }
@@ -87,10 +95,12 @@ impl Certificate {
         &self.handle
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_certificate_get_type_id() }
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn from_der(der: &[u8]) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -106,6 +116,7 @@ impl Certificate {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn import_item(
         data: &[u8],
         file_name_or_extension: Option<&str>,
@@ -132,6 +143,7 @@ impl Certificate {
             .map(Self::from_handle)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn export_item(&self, format: ExternalFormat, pem_armour: bool) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -147,6 +159,7 @@ impl Certificate {
         bridge::required_data("security_certificate_export_item", raw, status, error)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn from_pem(pem: &[u8]) -> Result<Self> {
         let pem = std::str::from_utf8(pem).map_err(|error| {
             SecurityError::InvalidArgument(format!("PEM input was not valid UTF-8: {error}"))
@@ -163,12 +176,14 @@ impl Certificate {
         Self::from_der(&der)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn subject_summary(&self) -> Result<Option<String>> {
         let raw =
             unsafe { bridge::security_certificate_copy_subject_summary(self.handle.as_ptr()) };
         bridge::optional_string(raw)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn common_name(&self) -> Result<Option<String>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -186,6 +201,7 @@ impl Certificate {
             .map(Some)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn email_addresses(&self) -> Result<Vec<String>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -204,6 +220,7 @@ impl Certificate {
         )
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn normalized_subject_sequence(&self) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -222,6 +239,7 @@ impl Certificate {
         )
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn normalized_issuer_sequence(&self) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -240,6 +258,7 @@ impl Certificate {
         )
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn serial_number(&self) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -258,6 +277,7 @@ impl Certificate {
         )
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn not_valid_before(&self) -> Result<Option<SystemTime>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -280,6 +300,7 @@ impl Certificate {
         decode_date(value).map(Some)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn not_valid_after(&self) -> Result<Option<SystemTime>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -302,6 +323,7 @@ impl Certificate {
         decode_date(value).map(Some)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn der_data(&self) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -311,6 +333,7 @@ impl Certificate {
         bridge::required_data("security_certificate_copy_der", raw, status, error)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn public_key(&self) -> Result<PublicKey> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -325,6 +348,7 @@ impl Certificate {
             .map(PublicKey::from_handle)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn add_to_keychain(&self) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -333,6 +357,7 @@ impl Certificate {
         bridge::status_result("security_certificate_add_to_keychain", status, error)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn values(&self, keys: &[&str]) -> Result<Value> {
         let keys = (!keys.is_empty())
             .then(|| bridge::json_cstring(&keys))
@@ -351,6 +376,7 @@ impl Certificate {
         bridge::required_json("security_certificate_copy_values", raw, status, error)
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn long_description(&self) -> Result<String> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -369,6 +395,7 @@ impl Certificate {
         )
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn short_description(&self) -> Result<String> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -387,6 +414,7 @@ impl Certificate {
         )
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn preferred(name: &str, key_usage: &[&str]) -> Result<Option<Self>> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())
@@ -413,6 +441,7 @@ impl Certificate {
         }
     }
 
+    /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn set_preferred(certificate: Option<&Self>, name: &str, key_usage: &[&str]) -> Result<()> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())

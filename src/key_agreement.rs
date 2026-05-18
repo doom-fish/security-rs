@@ -4,11 +4,13 @@ use crate::bridge;
 use crate::error::Result;
 
 #[derive(Debug)]
+/// Wraps a key-agreement public `SecKeyRef`.
 pub struct AgreementPublicKey {
     handle: bridge::Handle,
 }
 
 impl AgreementPublicKey {
+    /// Wraps the corresponding public `SecKeyRef` agreement operation.
     pub fn type_id() -> usize {
         crate::key::key_type_id()
     }
@@ -17,6 +19,7 @@ impl AgreementPublicKey {
         Self { handle }
     }
 
+    /// Wraps the corresponding public `SecKeyRef` agreement operation.
     pub fn attributes(&self) -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -28,15 +31,18 @@ impl AgreementPublicKey {
 }
 
 #[derive(Debug)]
+/// Wraps a key-agreement private `SecKeyRef`.
 pub struct AgreementPrivateKey {
     handle: bridge::Handle,
 }
 
 impl AgreementPrivateKey {
+    /// Wraps the corresponding private `SecKeyRef` agreement operation.
     pub fn type_id() -> usize {
         crate::key::key_type_id()
     }
 
+    /// Wraps the corresponding private `SecKeyRef` agreement operation.
     pub fn generate_p256() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -52,6 +58,7 @@ impl AgreementPrivateKey {
         .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding private `SecKeyRef` agreement operation.
     pub fn public_key(&self) -> Result<AgreementPublicKey> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -62,10 +69,12 @@ impl AgreementPrivateKey {
             .map(AgreementPublicKey::from_handle)
     }
 
+    /// Wraps the corresponding private `SecKeyRef` agreement operation.
     pub fn is_supported(&self) -> bool {
         unsafe { bridge::security_key_agreement_is_supported(self.handle.as_ptr()) }
     }
 
+    /// Wraps the corresponding private `SecKeyRef` agreement operation.
     pub fn shared_secret(
         &self,
         peer_public_key: &AgreementPublicKey,

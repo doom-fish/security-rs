@@ -6,28 +6,40 @@ use crate::error::Result;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    /// Mirrors Authorization Services option bits used with `AuthorizationCreate`.
     pub struct AuthorizationOptions: u32 {
+        /// Mirrors an Authorization Services option bit.
         const DEFAULTS = 0;
+        /// Mirrors an Authorization Services option bit.
         const INTERACTION_ALLOWED = 1 << 0;
+        /// Mirrors an Authorization Services option bit.
         const EXTEND_RIGHTS = 1 << 1;
+        /// Mirrors an Authorization Services option bit.
         const PARTIAL_RIGHTS = 1 << 2;
+        /// Mirrors an Authorization Services option bit.
         const DESTROY_RIGHTS = 1 << 3;
+        /// Mirrors an Authorization Services option bit.
         const PREAUTHORIZE = 1 << 4;
+        /// Mirrors an Authorization Services option bit.
         const SKIP_INTERNAL_AUTH = 1 << 9;
+        /// Mirrors an Authorization Services option bit.
         const NO_DATA = 1 << 20;
     }
 }
 
 #[derive(Debug)]
+/// Wraps `AuthorizationRef`.
 pub struct Authorization {
     handle: bridge::Handle,
 }
 
 impl Authorization {
+    /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn new() -> Result<Self> {
         Self::with_options(AuthorizationOptions::DEFAULTS)
     }
 
+    /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn with_options(options: AuthorizationOptions) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -38,6 +50,7 @@ impl Authorization {
             .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn external_form(&self) -> Result<Vec<u8>> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -56,6 +69,7 @@ impl Authorization {
         )
     }
 
+    /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn from_external_form(external_form: &[u8]) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -76,6 +90,7 @@ impl Authorization {
         .map(|handle| Self { handle })
     }
 
+    /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn copy_info(&self, tag: Option<&str>) -> Result<Value> {
         let tag = tag.map(bridge::cstring).transpose()?;
         let mut status = 0;
@@ -92,6 +107,7 @@ impl Authorization {
         bridge::required_json("security_authorization_copy_info", raw, status, error)
     }
 
+    /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn copy_rights(&self, rights: &[&str], options: AuthorizationOptions) -> Result<Value> {
         let rights_json = bridge::json_cstring(&rights)?;
         let mut status = 0;
@@ -108,6 +124,7 @@ impl Authorization {
         bridge::required_json("security_authorization_copy_rights", raw, status, error)
     }
 
+    /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn copy_rights_async(
         &self,
         rights: &[&str],
