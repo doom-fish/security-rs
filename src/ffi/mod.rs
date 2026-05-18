@@ -19,12 +19,10 @@ pub use item::*;
 pub use key::*;
 pub use policy::*;
 pub use apple_cf::raw::{
-    CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef,
+    Boolean, CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef,
     CFIndex, CFMutableDictionaryRef, CFNumberRef, CFOptionFlags, CFStringRef, CFTypeID,
-    CFTypeRef,
+    CFTypeRef, OSStatus,
 };
-pub type OSStatus = i32;
-pub type Boolean = u8;
 pub type SecRandomRef = *const c_void;
 pub type SecAccessControlRef = *const c_void;
 pub type SecCertificateRef = *const c_void;
