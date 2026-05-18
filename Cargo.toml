@@ -1,6 +1,6 @@
 [package]
 name = "security-rs"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/security-rs"
@@ -42,7 +42,7 @@ default = []
 raw-ffi = []
 
 [dependencies]
-apple-cf = { version = ">=0.4, <0.8" }
+apple-cf = { version = ">=0.4, <0.9" }
 base64 = "0.22"
 bitflags = "2.6"
 libc = "0.2"
