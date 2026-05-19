@@ -1,6 +1,6 @@
 [package]
 name = "security-rs"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/security-rs"
@@ -9,7 +9,7 @@ description = "Safe Rust bindings for Apple's Security framework — keychain, i
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["security", "keychain", "certificates", "macos", "apple"]
 categories = ["api-bindings", "os::macos-apis", "cryptography"]
-rust-version = "1.70"
+rust-version = "1.76"
 readme = "README.md"
 build = "build.rs"
 include = [
