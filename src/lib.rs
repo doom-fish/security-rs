@@ -19,6 +19,9 @@
     clippy::unnecessary_lazy_evaluations
 )]
 
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+pub mod async_api;
 /// Safe wrappers for Authorization Services APIs in Security.framework.
 pub mod authorization;
 mod bridge;

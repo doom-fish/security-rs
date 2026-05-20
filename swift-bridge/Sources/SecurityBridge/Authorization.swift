@@ -237,3 +237,65 @@ public func securityAuthorizationCopyRightsAsync(
     defer { releaseAuthorizationItemSet(UnsafeMutablePointer(authorizedRights)) }
     return jsonHandle(authorizationItemSetJSON(UnsafePointer(authorizedRights)))
 }
+
+public typealias SecurityAuthorizationCopyRightsAsyncCallback = @convention(c) (
+    UnsafeMutableRawPointer?,
+    UnsafeMutableRawPointer?,
+    Int32,
+    UnsafeMutableRawPointer?
+) -> Void
+
+@_cdecl("security_authorization_copy_rights_async_start")
+public func securityAuthorizationCopyRightsAsyncStart(
+    _ authorizationPointer: UnsafeMutableRawPointer?,
+    _ rightsPointer: UnsafePointer<CChar>?,
+    _ flags: UInt32,
+    _ refcon: UnsafeMutableRawPointer?,
+    _ callback: SecurityAuthorizationCopyRightsAsyncCallback?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> Int32 {
+    clearError(errorOut)
+
+    guard let authorization = unboxAuthorization(authorizationPointer),
+          let rightNames = jsonStringArray(fromCString: rightsPointer),
+          !rightNames.isEmpty
+    else {
+        setError(errorOut, "authorization rights are required")
+        return errAuthorizationInvalidSet
+    }
+    guard let callback else {
+        setError(errorOut, "authorization async callback is required")
+        return errSecParam
+    }
+
+    withAuthorizationRights(rightNames) { rights in
+        AuthorizationCopyRightsAsync(
+            authorization,
+            rights,
+            nil,
+            AuthorizationFlags(rawValue: flags)
+        ) { status, callbackAuthorizedRights in
+            defer { releaseAuthorizationItemSet(UnsafeMutablePointer(callbackAuthorizedRights)) }
+
+            if status == errAuthorizationSuccess,
+               let callbackAuthorizedRights,
+               let json = jsonHandle(authorizationItemSetJSON(UnsafePointer(callbackAuthorizedRights))) {
+                callback(refcon, json, status, nil)
+                return
+            }
+
+            let callbackStatus: Int32
+            let message: String
+            if status == errAuthorizationSuccess {
+                callbackStatus = errAuthorizationInternal
+                message = "AuthorizationCopyRightsAsync returned no rights"
+            } else {
+                callbackStatus = status
+                message = "AuthorizationCopyRightsAsync failed: \(statusMessage(status))"
+            }
+            callback(refcon, nil, callbackStatus, stringHandle(message))
+        }
+    }
+
+    return errAuthorizationSuccess
+}

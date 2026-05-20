@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.0] - 2026-05-20
+
+### Added
+
+- `async_api` module behind the `async` feature, providing executor-agnostic async wrappers for `SecTrustEvaluateAsyncWithError` and `AuthorizationCopyRightsAsync`. Uses `doom-fish-utils::completion`.
+
 ## [0.4.4] - 2026-05-20
 
 - Added in-`src/` unit tests across `authorization`, `error`, `keychain`, and `trust`, providing fast `cargo test --lib` fail-fast signal alongside the existing integration tests under `tests/`.

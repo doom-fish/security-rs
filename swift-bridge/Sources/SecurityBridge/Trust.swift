@@ -333,6 +333,41 @@ public func securityTrustEvaluateAsync(
     return callbackResult
 }
 
+public typealias SecurityTrustEvaluateAsyncCallback = @convention(c) (
+    UnsafeMutableRawPointer?,
+    Bool,
+    UnsafeMutableRawPointer?
+) -> Void
+
+@_cdecl("security_trust_evaluate_async_start")
+public func securityTrustEvaluateAsyncStart(
+    _ trustPointer: UnsafeMutableRawPointer?,
+    _ refcon: UnsafeMutableRawPointer?,
+    _ callback: SecurityTrustEvaluateAsyncCallback?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> Int32 {
+    clearError(errorOut)
+
+    guard let trust = unbox(trustPointer, as: SecTrust.self) else {
+        setError(errorOut, "trust handle is required")
+        return errSecParam
+    }
+    guard let callback else {
+        setError(errorOut, "trust async callback is required")
+        return errSecParam
+    }
+
+    let queue = DispatchQueue(label: "security-rs.trust.evaluate.async")
+    let status = SecTrustEvaluateAsyncWithError(trust, queue) { _, trusted, error in
+        let errorHandle = error.map(trustErrorMessage).flatMap(stringHandle)
+        callback(refcon, trusted, errorHandle)
+    }
+    if status != errSecSuccess {
+        setError(errorOut, "SecTrustEvaluateAsyncWithError failed: \(statusMessage(status))")
+    }
+    return status
+}
+
 @_cdecl("security_trust_get_trust_result")
 public func securityTrustGetTrustResult(
     _ trustPointer: UnsafeMutableRawPointer?,

@@ -76,6 +76,11 @@ pub struct Trust {
 }
 
 impl Trust {
+    #[cfg(feature = "async")]
+    pub(crate) fn as_ptr(&self) -> *mut std::ffi::c_void {
+        self.handle.as_ptr()
+    }
+
     /// Wraps the corresponding `SecTrustRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_trust_get_type_id() }

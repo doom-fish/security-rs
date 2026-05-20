@@ -8,6 +8,19 @@ use serde::Serialize;
 
 use crate::error::{OsStatus, Result, SecurityError};
 
+#[cfg(feature = "async")]
+pub(crate) type SecurityTrustEvaluateAsyncCallback =
+    Option<unsafe extern "C" fn(refcon: *mut c_void, trusted: bool, error: *mut c_void)>;
+#[cfg(feature = "async")]
+pub(crate) type SecurityAuthorizationCopyRightsAsyncCallback = Option<
+    unsafe extern "C" fn(
+        refcon: *mut c_void,
+        json: *mut c_void,
+        status: OsStatus,
+        error: *mut c_void,
+    ),
+>;
+
 unsafe extern "C" {
     pub(crate) fn security_release_handle(pointer: *mut c_void);
     pub(crate) fn security_string_len(pointer: *mut c_void) -> isize;
@@ -385,6 +398,13 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> bool;
+    #[cfg(feature = "async")]
+    pub(crate) fn security_trust_evaluate_async_start(
+        pointer: *mut c_void,
+        refcon: *mut c_void,
+        callback: SecurityTrustEvaluateAsyncCallback,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
     pub(crate) fn security_trust_get_trust_result(
         pointer: *mut c_void,
         status_out: *mut OsStatus,
@@ -463,6 +483,15 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    #[cfg(feature = "async")]
+    pub(crate) fn security_authorization_copy_rights_async_start(
+        pointer: *mut c_void,
+        rights_json: *const c_char,
+        flags: u32,
+        refcon: *mut c_void,
+        callback: SecurityAuthorizationCopyRightsAsyncCallback,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
 
     pub(crate) fn security_code_copy_self(
         status_out: *mut OsStatus,
