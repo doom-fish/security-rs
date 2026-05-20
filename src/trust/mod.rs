@@ -502,3 +502,69 @@ fn system_time_to_unix(time: SystemTime) -> f64 {
         Err(error) => -error.duration().as_secs_f64(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn trust_result_type_from_raw_maps_known_values() {
+        assert_eq!(
+            TrustResultType::from_raw(0).unwrap(),
+            TrustResultType::Invalid
+        );
+        assert_eq!(
+            TrustResultType::from_raw(7).unwrap(),
+            TrustResultType::OtherError
+        );
+    }
+
+    #[test]
+    fn trust_result_type_from_raw_rejects_unknown_values() {
+        assert_eq!(
+            TrustResultType::from_raw(99).unwrap_err(),
+            SecurityError::InvalidArgument("unexpected trust result type: 99".to_owned())
+        );
+    }
+
+    #[test]
+    fn system_time_to_unix_preserves_times_after_epoch() {
+        let time = UNIX_EPOCH + Duration::from_secs_f64(42.5);
+
+        assert!((system_time_to_unix(time) - 42.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn system_time_to_unix_preserves_times_before_epoch() {
+        let time = UNIX_EPOCH - Duration::from_secs_f64(12.5);
+
+        assert!((system_time_to_unix(time) + 12.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn decode_trust_date_parses_positive_unix_seconds() {
+        let time = decode_trust_date(json!({ "unix": 42.5 })).unwrap();
+
+        assert_eq!(time, UNIX_EPOCH + Duration::from_secs_f64(42.5));
+    }
+
+    #[test]
+    fn decode_trust_date_parses_negative_unix_seconds() {
+        let time = decode_trust_date(json!({ "unix": -12.5 })).unwrap();
+
+        assert_eq!(time, UNIX_EPOCH - Duration::from_secs_f64(12.5));
+    }
+
+    #[test]
+    fn decode_trust_date_requires_unix_field() {
+        assert!(matches!(
+            decode_trust_date(json!({ "seconds": 1 })).unwrap_err(),
+            SecurityError::UnexpectedType {
+                operation: "security_trust_get_verify_time",
+                expected: "date JSON object",
+            }
+        ));
+    }
+}

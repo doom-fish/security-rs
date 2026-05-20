@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.4] - 2026-05-20
+
+- Added in-`src/` unit tests across `authorization`, `error`, `keychain`, and `trust`, providing fast `cargo test --lib` fail-fast signal alongside the existing integration tests under `tests/`.
+
 ## [0.4.3] - 2026-05-19
 
 - Bump MSRV from 1.70 to 1.76 to match fleet baseline.

@@ -203,3 +203,60 @@ impl Keychain {
         bridge::required_json("security_keychain_list_accounts", raw, status, error)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn access_control_protection_base_bridge_names_are_stable() {
+        assert_eq!(
+            AccessControlProtection::WhenUnlocked.as_bridge_name(),
+            "when_unlocked"
+        );
+        assert_eq!(
+            AccessControlProtection::AfterFirstUnlock.as_bridge_name(),
+            "after_first_unlock"
+        );
+    }
+
+    #[test]
+    fn access_control_protection_device_only_bridge_names_are_stable() {
+        assert_eq!(
+            AccessControlProtection::WhenPasscodeSetThisDeviceOnly.as_bridge_name(),
+            "when_passcode_set_this_device_only"
+        );
+        assert_eq!(
+            AccessControlProtection::WhenUnlockedThisDeviceOnly.as_bridge_name(),
+            "when_unlocked_this_device_only"
+        );
+        assert_eq!(
+            AccessControlProtection::AfterFirstUnlockThisDeviceOnly.as_bridge_name(),
+            "after_first_unlock_this_device_only"
+        );
+    }
+
+    #[test]
+    fn access_control_flags_round_trip_through_bits() {
+        let flags = AccessControlFlags::USER_PRESENCE
+            | AccessControlFlags::PRIVATE_KEY_USAGE
+            | AccessControlFlags::APPLICATION_PASSWORD;
+
+        assert_eq!(AccessControlFlags::from_bits(flags.bits()), Some(flags));
+    }
+
+    #[test]
+    fn keychain_entry_new_preserves_account_and_service() {
+        let entry = KeychainEntry::new("alice", "security-rs.tests");
+
+        assert_eq!(entry.account(), "alice");
+        assert_eq!(entry.service(), "security-rs.tests");
+    }
+
+    #[test]
+    fn keychain_entry_convenience_constructor_matches_new() {
+        let entry = Keychain::entry("alice", "security-rs.tests");
+
+        assert_eq!(entry, KeychainEntry::new("alice", "security-rs.tests"));
+    }
+}

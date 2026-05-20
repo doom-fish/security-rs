@@ -136,3 +136,102 @@ impl std::error::Error for SecurityError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_error_display_includes_operation_status_and_message() {
+        let error = StatusError {
+            operation: "security_op",
+            status: -50,
+            message: "bad input".to_owned(),
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "security_op failed with OSStatus -50: bad input"
+        );
+    }
+
+    #[test]
+    fn from_status_maps_known_codes_to_specialized_variants() {
+        assert_eq!(
+            SecurityError::from_status("op", status::ITEM_NOT_FOUND, "missing".to_owned()),
+            SecurityError::ItemNotFound("missing".to_owned())
+        );
+        assert_eq!(
+            SecurityError::from_status("op", status::DUPLICATE_ITEM, "duplicate".to_owned()),
+            SecurityError::DuplicateItem("duplicate".to_owned())
+        );
+        assert_eq!(
+            SecurityError::from_status(
+                "op",
+                status::INTERACTION_NOT_ALLOWED,
+                "suppressed".to_owned(),
+            ),
+            SecurityError::InteractionNotAllowed("suppressed".to_owned())
+        );
+    }
+
+    #[test]
+    fn from_status_wraps_unknown_codes_in_status_error() {
+        let error = SecurityError::from_status("security_op", -1_234, "unexpected".to_owned());
+
+        assert_eq!(
+            error,
+            SecurityError::Status(StatusError {
+                operation: "security_op",
+                status: -1_234,
+                message: "unexpected".to_owned(),
+            })
+        );
+        assert_eq!(error.code(), Some(-1_234));
+    }
+
+    #[test]
+    fn code_reports_expected_status_values() {
+        let status_error = SecurityError::Status(StatusError {
+            operation: "security_op",
+            status: -42,
+            message: "boom".to_owned(),
+        });
+
+        assert_eq!(
+            SecurityError::ItemNotFound("missing".to_owned()).code(),
+            Some(status::ITEM_NOT_FOUND)
+        );
+        assert_eq!(
+            SecurityError::DuplicateItem("duplicate".to_owned()).code(),
+            Some(status::DUPLICATE_ITEM)
+        );
+        assert_eq!(
+            SecurityError::InteractionNotAllowed("suppressed".to_owned()).code(),
+            Some(status::INTERACTION_NOT_ALLOWED)
+        );
+        assert_eq!(status_error.code(), Some(-42));
+        assert_eq!(
+            SecurityError::InvalidArgument("bad".to_owned()).code(),
+            None
+        );
+    }
+
+    #[test]
+    fn security_error_display_and_source_follow_wrapped_status() {
+        let wrapped = StatusError {
+            operation: "security_op",
+            status: -42,
+            message: "boom".to_owned(),
+        };
+        let error = SecurityError::Status(wrapped.clone());
+        let serialization = SecurityError::Serialization("invalid json".to_owned());
+
+        assert_eq!(error.to_string(), wrapped.to_string());
+        assert_eq!(
+            std::error::Error::source(&error).unwrap().to_string(),
+            wrapped.to_string()
+        );
+        assert!(std::error::Error::source(&serialization).is_none());
+    }
+}

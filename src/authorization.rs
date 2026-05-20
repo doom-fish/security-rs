@@ -150,3 +150,35 @@ impl Authorization {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_are_empty() {
+        assert!(AuthorizationOptions::DEFAULTS.is_empty());
+        assert_eq!(AuthorizationOptions::DEFAULTS.bits(), 0);
+    }
+
+    #[test]
+    fn authorization_options_round_trip_through_bits() {
+        let options = AuthorizationOptions::INTERACTION_ALLOWED
+            | AuthorizationOptions::EXTEND_RIGHTS
+            | AuthorizationOptions::PREAUTHORIZE;
+
+        assert_eq!(
+            AuthorizationOptions::from_bits(options.bits()),
+            Some(options)
+        );
+    }
+
+    #[test]
+    fn authorization_options_keep_sparse_bits() {
+        let options = AuthorizationOptions::SKIP_INTERNAL_AUTH | AuthorizationOptions::NO_DATA;
+
+        assert!(options.contains(AuthorizationOptions::SKIP_INTERNAL_AUTH));
+        assert!(options.contains(AuthorizationOptions::NO_DATA));
+        assert_eq!(options.bits(), (1 << 9) | (1 << 20));
+    }
+}
