@@ -25,8 +25,10 @@ fn async_trust_evaluation_reports_both_outcomes() -> security::Result<()> {
 #[test]
 fn async_rights_request_without_interaction_fails_without_ui() -> security::Result<()> {
     let authorization = Authorization::new()?;
-    let request = AsyncAuthorization::new(&authorization)
-        .copy_rights(&["system.privilege.admin"], AuthorizationOptions::EXTEND_RIGHTS)?;
+    let request = AsyncAuthorization::new(&authorization).copy_rights(
+        &["system.privilege.admin"],
+        AuthorizationOptions::EXTEND_RIGHTS,
+    )?;
     assert!(pollster::block_on(request).is_err());
     assert!(AsyncAuthorization::new(&authorization)
         .copy_rights(&[], AuthorizationOptions::EXTEND_RIGHTS)
@@ -38,16 +40,20 @@ fn async_rights_request_without_interaction_fails_without_ui() -> security::Resu
 fn dropping_the_authorization_while_a_request_is_in_flight_is_safe() -> security::Result<()> {
     for _ in 0..16 {
         let authorization = Authorization::new()?;
-        let request = AsyncAuthorization::new(&authorization)
-            .copy_rights(&["system.privilege.admin"], AuthorizationOptions::EXTEND_RIGHTS)?;
+        let request = AsyncAuthorization::new(&authorization).copy_rights(
+            &["system.privilege.admin"],
+            AuthorizationOptions::EXTEND_RIGHTS,
+        )?;
         drop(request);
         drop(authorization);
     }
     std::thread::sleep(std::time::Duration::from_millis(500));
 
     let authorization = Authorization::new()?;
-    let request = AsyncAuthorization::new(&authorization)
-        .copy_rights(&["system.privilege.admin"], AuthorizationOptions::EXTEND_RIGHTS)?;
+    let request = AsyncAuthorization::new(&authorization).copy_rights(
+        &["system.privilege.admin"],
+        AuthorizationOptions::EXTEND_RIGHTS,
+    )?;
     assert!(pollster::block_on(request).is_err());
     Ok(())
 }

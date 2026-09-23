@@ -1,8 +1,8 @@
 mod common;
 
 use security::{
-    Certificate, Cms, CmsCertificateVerification, CmsDecoder, CmsSignedAttributes,
-    CmsSignerStatus, Identity,
+    Certificate, Cms, CmsCertificateVerification, CmsDecoder, CmsSignedAttributes, CmsSignerStatus,
+    Identity,
 };
 
 fn signed_message() -> security::Result<(Vec<u8>, Certificate)> {
@@ -52,7 +52,9 @@ fn signer_status_without_trust_evaluation_is_not_reported_as_verified() -> secur
     );
     assert!(!report.is_verified());
 
-    let mut trust = report.trust.expect("the signer trust is returned for later evaluation");
+    let mut trust = report
+        .trust
+        .expect("the signer trust is returned for later evaluation");
     trust.set_network_fetch_allowed(false)?;
     assert!(trust.evaluate().is_err());
     trust.set_anchor_certificates(&[certificate])?;
@@ -79,7 +81,9 @@ fn signer_status_with_trust_evaluation_rejects_an_untrusted_signer() -> security
 fn signer_status_reports_an_out_of_range_signer() -> security::Result<()> {
     let (message, _) = signed_message()?;
     let decoder = decoder_for(&message)?;
-    let status = decoder.signer_status(7, None, false).map(|report| report.signer_status);
+    let status = decoder
+        .signer_status(7, None, false)
+        .map(|report| report.signer_status);
     assert!(matches!(
         status,
         Ok(CmsSignerStatus::InvalidIndex) | Err(security::SecurityError::Status(_))

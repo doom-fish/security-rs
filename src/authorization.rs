@@ -168,7 +168,10 @@ pub(crate) fn rights_json(rights: &[&str]) -> Result<std::ffi::CString> {
             "at least one authorization right is required".to_owned(),
         ));
     }
-    if rights.iter().any(|right| right.is_empty() || right.contains('\0')) {
+    if rights
+        .iter()
+        .any(|right| right.is_empty() || right.contains('\0'))
+    {
         return Err(SecurityError::InvalidArgument(
             "authorization right names must be non-empty and free of NUL bytes".to_owned(),
         ));
@@ -186,7 +189,10 @@ mod tests {
         assert!(rights_json(&[""]).is_err());
         assert!(rights_json(&["system.privilege.admin\0other"]).is_err());
         assert_eq!(
-            rights_json(&["system.preferences"]).unwrap().to_str().unwrap(),
+            rights_json(&["system.preferences"])
+                .unwrap()
+                .to_str()
+                .unwrap(),
             r#"["system.preferences"]"#
         );
     }

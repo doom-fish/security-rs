@@ -326,12 +326,8 @@ impl Code {
                 &raw mut error,
             )
         };
-        let value: Value = bridge::required_json(
-            "security_code_copy_signing_information",
-            raw,
-            status,
-            error,
-        )?;
+        let value: Value =
+            bridge::required_json("security_code_copy_signing_information", raw, status, error)?;
         Ok(SigningInformation::from_json(&value))
     }
 

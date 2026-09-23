@@ -42,7 +42,10 @@ impl Peer {
         let mut values = [0_u32; 8];
         let mut count = 8_u32;
         unsafe {
-            assert_eq!(task_name_for_pid(mach_task_self_, self.pid(), &raw mut name), 0);
+            assert_eq!(
+                task_name_for_pid(mach_task_self_, self.pid(), &raw mut name),
+                0
+            );
             let status = task_info(
                 name,
                 TASK_AUDIT_TOKEN,
@@ -161,7 +164,9 @@ fn audit_token_lookup_identifies_the_peer() -> security::Result<()> {
         Task::current()?.signing_identifier()?
     );
     assert_eq!(
-        Task::from_audit_token(&token)?.signing_identifier()?.as_deref(),
+        Task::from_audit_token(&token)?
+            .signing_identifier()?
+            .as_deref(),
         Some("com.apple.sleep")
     );
 
