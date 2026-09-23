@@ -5,8 +5,10 @@ use std::rc::Rc;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use zeroize::Zeroizing;
 
 use crate::error::{OsStatus, Result, SecurityError};
+use crate::secret::SecretBytes;
 
 #[cfg(feature = "async")]
 pub(crate) type SecurityTrustEvaluateAsyncCallback =
@@ -30,31 +32,48 @@ unsafe extern "C" {
         capacity: isize,
     ) -> isize;
     pub(crate) fn security_data_len(pointer: *mut c_void) -> isize;
+    pub(crate) fn security_secret_len(pointer: *mut c_void) -> isize;
+    pub(crate) fn security_secret_copy_bytes(
+        pointer: *mut c_void,
+        buffer: *mut c_void,
+        capacity: isize,
+    ) -> isize;
     pub(crate) fn security_data_copy_bytes(
         pointer: *mut c_void,
         buffer: *mut c_void,
         capacity: isize,
     ) -> isize;
 
-    pub(crate) fn security_keychain_set_password(
+    pub(crate) fn security_authentication_context_retain(context: *mut c_void) -> *mut c_void;
+    pub(crate) fn security_keychain_set_item(
         account: *const c_char,
         service: *const c_char,
-        password: *const c_char,
+        data: *const c_void,
+        data_length: isize,
+        options_json: *const c_char,
+        access_control: *mut c_void,
+        authentication_context: *mut c_void,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
-    pub(crate) fn security_keychain_get_password(
+    pub(crate) fn security_keychain_copy_item(
         account: *const c_char,
         service: *const c_char,
+        options_json: *const c_char,
+        authentication_context: *mut c_void,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
-    pub(crate) fn security_keychain_delete_password(
+    pub(crate) fn security_keychain_delete_item(
         account: *const c_char,
         service: *const c_char,
+        options_json: *const c_char,
+        authentication_context: *mut c_void,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_keychain_list_accounts(
         service: *const c_char,
+        options_json: *const c_char,
+        authentication_context: *mut c_void,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -517,7 +536,8 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
-    pub(crate) fn security_code_copy_audit_token(pointer: *mut c_void, token_out: *mut u32) -> bool;
+    pub(crate) fn security_code_copy_audit_token(pointer: *mut c_void, token_out: *mut u32)
+        -> bool;
     pub(crate) fn security_audit_token_copy_current(token_out: *mut u32) -> bool;
     pub(crate) fn security_code_copy_guest_with_audit_token(
         token: *const u32,
@@ -1036,6 +1056,31 @@ pub(crate) fn required_json<T: DeserializeOwned>(
 ) -> Result<T> {
     let json = required_string(operation, raw, status, error_raw)?;
     parse_json(&json)
+}
+
+pub(crate) fn required_secret(
+    operation: &'static str,
+    raw: *mut c_void,
+    status: OsStatus,
+    error_raw: *mut c_void,
+) -> Result<SecretBytes> {
+    let handle = required_handle(operation, raw, status, error_raw)?;
+    let length = usize::try_from(unsafe { security_secret_len(handle.as_ptr()) })
+        .map_err(|_| SecurityError::Serialization(format!("{operation} returned no secret")))?;
+    let mut bytes = Zeroizing::new(vec![0_u8; length]);
+    let written = unsafe {
+        security_secret_copy_bytes(
+            handle.as_ptr(),
+            bytes.as_mut_ptr().cast::<c_void>(),
+            len_to_isize(length)?,
+        )
+    };
+    if usize::try_from(written).ok() != Some(length) {
+        return Err(SecurityError::Serialization(format!(
+            "{operation} returned a truncated secret"
+        )));
+    }
+    Ok(SecretBytes::new(bytes))
 }
 
 pub(crate) fn status_result(

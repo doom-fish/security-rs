@@ -54,6 +54,7 @@ pub mod policy;
 pub mod random;
 /// Safe wrappers for `SecRandomCopyBytes`.
 pub mod random_bytes;
+pub mod secret;
 /// Safe wrappers for Secure Transport session APIs in Security.framework.
 pub mod secure_transport;
 /// Safe wrappers for Security Transforms APIs.
@@ -68,8 +69,8 @@ pub use cms::{
     CmsEncoder, CmsSignedAttributes, CmsSignerStatus, CmsSignerStatusReport,
 };
 pub use code::{
-    AuditToken, Code, CodeSigningFlags, CodeStatus, Requirement, SigningInformation,
-    SigningValue, StaticCode, Task,
+    AuditToken, Code, CodeSigningFlags, CodeStatus, Requirement, SigningInformation, SigningValue,
+    StaticCode, Task,
 };
 pub use error::{OsStatus, Result, SecurityError, StatusError};
 pub use identity::Identity;
@@ -80,9 +81,11 @@ pub use key_agreement::{AgreementPrivateKey, AgreementPublicKey};
 pub use key_derivation::{DerivedKey, KeyDerivation};
 pub use keychain::{
     AccessControl, AccessControlFlags, AccessControlProtection, Keychain, KeychainEntry,
+    KeychainOptions,
 };
 pub use policy::{Policy, PolicyIdentifier, PolicyName, PolicyProperties, RevocationFlags};
 pub use random_bytes::SecureRandom;
+pub use secret::SecretBytes;
 pub use secure_transport::{ProtocolVersion, SecureTransportContext, SecureTransportState};
 pub use transform::Transform;
 pub use trust::{Trust, TrustOptions, TrustResultType};
@@ -109,11 +112,13 @@ pub mod prelude {
     pub use crate::key_derivation::{DerivedKey, KeyDerivation};
     pub use crate::keychain::{
         AccessControl, AccessControlFlags, AccessControlProtection, Keychain, KeychainEntry,
+        KeychainOptions,
     };
     pub use crate::policy::{
         Policy, PolicyIdentifier, PolicyName, PolicyProperties, RevocationFlags,
     };
     pub use crate::random_bytes::SecureRandom;
+    pub use crate::secret::SecretBytes;
     pub use crate::secure_transport::{
         ProtocolVersion, SecureTransportContext, SecureTransportState,
     };

@@ -69,26 +69,175 @@ public func securityAccessControlCreate(
     return retain(accessControl)
 }
 
-@_cdecl("security_keychain_set_password")
-public func securityKeychainSetPassword(
+private struct KeychainQueryOptions {
+    var accessibility: CFTypeRef = kSecAttrAccessibleWhenUnlocked
+    var accessGroup: String?
+    var synchronizable = false
+    var dataProtectionKeychain = false
+}
+
+private func keychainQueryOptions(_ pointer: UnsafePointer<CChar>?) -> KeychainQueryOptions? {
+    var options = KeychainQueryOptions()
+    guard let pointer else {
+        return options
+    }
+    guard let object = jsonObject(fromCString: pointer) as? [String: Any] else {
+        return nil
+    }
+    if let value = object["accessibility"] {
+        guard let name = value as? String, let accessibility = accessControlProtection(name) else {
+            return nil
+        }
+        options.accessibility = accessibility
+    }
+    if let value = object["access_group"] {
+        guard let accessGroup = value as? String else {
+            return nil
+        }
+        options.accessGroup = accessGroup
+    }
+    if let value = object["synchronizable"] {
+        guard let synchronizable = value as? Bool else {
+            return nil
+        }
+        options.synchronizable = synchronizable
+    }
+    if let value = object["data_protection_keychain"] {
+        guard let dataProtectionKeychain = value as? Bool else {
+            return nil
+        }
+        options.dataProtectionKeychain = dataProtectionKeychain
+    }
+    return options
+}
+
+struct AuthenticationContextRecord {
+    let context: NSObject
+}
+
+private func keychainQuery(
+    account: String?,
+    service: String,
+    options: KeychainQueryOptions,
+    authenticationContext: NSObject?
+) -> [CFString: Any] {
+    var query = genericPasswordQuery(account: account, service: service)
+    if options.dataProtectionKeychain {
+        query[kSecUseDataProtectionKeychain] = true
+    }
+    if let accessGroup = options.accessGroup {
+        query[kSecAttrAccessGroup] = accessGroup
+    }
+    if options.synchronizable {
+        query[kSecAttrSynchronizable] = true
+    }
+    if let authenticationContext {
+        query[kSecUseAuthenticationContext] = authenticationContext
+    }
+    return query
+}
+
+private enum KeychainInputError: Error {
+    case invalid(String)
+}
+
+private func keychainInputs(
+    service servicePointer: UnsafePointer<CChar>?,
+    options optionsPointer: UnsafePointer<CChar>?,
+    authenticationContext authenticationContextPointer: UnsafeMutableRawPointer?
+) throws -> (String, KeychainQueryOptions, NSObject?) {
+    guard let service = stringFromCString(servicePointer) else {
+        throw KeychainInputError.invalid("service is required")
+    }
+    guard let options = keychainQueryOptions(optionsPointer) else {
+        throw KeychainInputError.invalid("keychain options JSON was invalid")
+    }
+    let authenticationContext = unbox(authenticationContextPointer, as: AuthenticationContextRecord.self)?.context
+    guard authenticationContextPointer == nil || authenticationContext != nil else {
+        throw KeychainInputError.invalid("authentication context handle is invalid")
+    }
+    return (service, options, authenticationContext)
+}
+
+private func keychainInputMessage(_ error: Error) -> String {
+    if case let KeychainInputError.invalid(message) = error {
+        return message
+    }
+    return "invalid keychain input"
+}
+
+@_cdecl("security_authentication_context_retain")
+public func securityAuthenticationContextRetain(_ contextPointer: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+    guard let contextPointer,
+          let contextClass = NSClassFromString("LAContext"),
+          let context = Unmanaged<AnyObject>.fromOpaque(contextPointer).takeUnretainedValue() as? NSObject,
+          context.isKind(of: contextClass)
+    else {
+        return nil
+    }
+    return retain(AuthenticationContextRecord(context: context))
+}
+
+@_cdecl("security_keychain_set_item")
+public func securityKeychainSetItem(
     _ accountPointer: UnsafePointer<CChar>?,
     _ servicePointer: UnsafePointer<CChar>?,
-    _ passwordPointer: UnsafePointer<CChar>?,
+    _ dataPointer: UnsafeRawPointer?,
+    _ dataLength: Int,
+    _ optionsPointer: UnsafePointer<CChar>?,
+    _ accessControlPointer: UnsafeMutableRawPointer?,
+    _ authenticationContextPointer: UnsafeMutableRawPointer?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
-    guard let account = stringFromCString(accountPointer),
-          let service = stringFromCString(servicePointer),
-          let password = stringFromCString(passwordPointer)
-    else {
-        setError(errorOut, "account, service, and password are required")
+    let inputs: (String, KeychainQueryOptions, NSObject?)
+    do {
+        inputs = try keychainInputs(
+            service: servicePointer,
+            options: optionsPointer,
+            authenticationContext: authenticationContextPointer
+        )
+    } catch {
+        setError(errorOut, keychainInputMessage(error))
+        return errSecParam
+    }
+    let (service, options, authenticationContext) = inputs
+    guard let account = stringFromCString(accountPointer), dataLength >= 0, dataPointer != nil || dataLength == 0 else {
+        setError(errorOut, "account and secret data are required")
+        return errSecParam
+    }
+    let accessControl = unbox(accessControlPointer, as: SecAccessControl.self)
+    guard accessControlPointer == nil || accessControl != nil else {
+        setError(errorOut, "access control handle is invalid")
         return errSecParam
     }
 
-    let searchQuery = genericPasswordQuery(account: account, service: service)
-    var addQuery = searchQuery
-    addQuery[kSecValueData] = Data(password.utf8)
+    let secret = NSMutableData(length: dataLength) ?? NSMutableData()
+    if let dataPointer, dataLength > 0 {
+        secret.replaceBytes(in: NSRange(location: 0, length: dataLength), withBytes: dataPointer)
+    }
+    defer {
+        if secret.length > 0 {
+            _ = memset_s(secret.mutableBytes, secret.length, 0, secret.length)
+        }
+    }
+
+    var protection: [CFString: Any] = [:]
+    if let accessControl {
+        protection[kSecAttrAccessControl] = accessControl
+    } else {
+        protection[kSecAttrAccessible] = options.accessibility
+    }
+
+    let searchQuery = keychainQuery(
+        account: account,
+        service: service,
+        options: options,
+        authenticationContext: authenticationContext
+    )
+    var addQuery = searchQuery.merging(protection) { $1 }
+    addQuery[kSecValueData] = secret
 
     let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
     if addStatus == errSecSuccess {
@@ -100,10 +249,9 @@ public func securityKeychainSetPassword(
         return addStatus
     }
 
-    let updateStatus = SecItemUpdate(
-        searchQuery as CFDictionary,
-        [kSecValueData: Data(password.utf8)] as CFDictionary
-    )
+    var update = protection
+    update[kSecValueData] = secret
+    let updateStatus = SecItemUpdate(searchQuery as CFDictionary, update as CFDictionary)
     if updateStatus != errSecSuccess {
         setError(errorOut, "SecItemUpdate failed: \(statusMessage(updateStatus))")
     }
@@ -111,25 +259,43 @@ public func securityKeychainSetPassword(
     return updateStatus
 }
 
-@_cdecl("security_keychain_get_password")
-public func securityKeychainGetPassword(
+@_cdecl("security_keychain_copy_item")
+public func securityKeychainCopyItem(
     _ accountPointer: UnsafePointer<CChar>?,
     _ servicePointer: UnsafePointer<CChar>?,
+    _ optionsPointer: UnsafePointer<CChar>?,
+    _ authenticationContextPointer: UnsafeMutableRawPointer?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let account = stringFromCString(accountPointer),
-          let service = stringFromCString(servicePointer)
-    else {
+    let inputs: (String, KeychainQueryOptions, NSObject?)
+    do {
+        inputs = try keychainInputs(
+            service: servicePointer,
+            options: optionsPointer,
+            authenticationContext: authenticationContextPointer
+        )
+    } catch {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "account and service are required")
+        setError(errorOut, keychainInputMessage(error))
+        return nil
+    }
+    let (service, options, authenticationContext) = inputs
+    guard let account = stringFromCString(accountPointer) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "account is required")
         return nil
     }
 
-    var query = genericPasswordQuery(account: account, service: service)
+    var query = keychainQuery(
+        account: account,
+        service: service,
+        options: options,
+        authenticationContext: authenticationContext
+    )
     query[kSecReturnData] = true
     query[kSecMatchLimit] = kSecMatchLimitOne
 
@@ -141,37 +307,49 @@ public func securityKeychainGetPassword(
         return nil
     }
 
-    guard let data = result as? Data else {
+    guard let result, CFGetTypeID(result) == CFDataGetTypeID() else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "SecItemCopyMatching returned non-data result")
         return nil
     }
 
-    guard let password = String(data: data, encoding: .utf8) else {
-        setStatus(statusOut, errSecParam)
-        setError(errorOut, "keychain item is not valid UTF-8")
-        return nil
-    }
-
-    return stringHandle(password)
+    return retainSecret(unsafeDowncast(result, to: CFData.self))
 }
 
-@_cdecl("security_keychain_delete_password")
-public func securityKeychainDeletePassword(
+@_cdecl("security_keychain_delete_item")
+public func securityKeychainDeleteItem(
     _ accountPointer: UnsafePointer<CChar>?,
     _ servicePointer: UnsafePointer<CChar>?,
+    _ optionsPointer: UnsafePointer<CChar>?,
+    _ authenticationContextPointer: UnsafeMutableRawPointer?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
-    guard let account = stringFromCString(accountPointer),
-          let service = stringFromCString(servicePointer)
-    else {
-        setError(errorOut, "account and service are required")
+    let inputs: (String, KeychainQueryOptions, NSObject?)
+    do {
+        inputs = try keychainInputs(
+            service: servicePointer,
+            options: optionsPointer,
+            authenticationContext: authenticationContextPointer
+        )
+    } catch {
+        setError(errorOut, keychainInputMessage(error))
+        return errSecParam
+    }
+    let (service, options, authenticationContext) = inputs
+    guard let account = stringFromCString(accountPointer) else {
+        setError(errorOut, "account is required")
         return errSecParam
     }
 
-    let status = SecItemDelete(genericPasswordQuery(account: account, service: service) as CFDictionary)
+    let query = keychainQuery(
+        account: account,
+        service: service,
+        options: options,
+        authenticationContext: authenticationContext
+    )
+    let status = SecItemDelete(query as CFDictionary)
     if status == errSecSuccess || status == errSecItemNotFound {
         return errSecSuccess
     }
@@ -183,19 +361,34 @@ public func securityKeychainDeletePassword(
 @_cdecl("security_keychain_list_accounts")
 public func securityKeychainListAccounts(
     _ servicePointer: UnsafePointer<CChar>?,
+    _ optionsPointer: UnsafePointer<CChar>?,
+    _ authenticationContextPointer: UnsafeMutableRawPointer?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let service = stringFromCString(servicePointer) else {
+    let inputs: (String, KeychainQueryOptions, NSObject?)
+    do {
+        inputs = try keychainInputs(
+            service: servicePointer,
+            options: optionsPointer,
+            authenticationContext: authenticationContextPointer
+        )
+    } catch {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "service is required")
+        setError(errorOut, keychainInputMessage(error))
         return nil
     }
+    let (service, options, authenticationContext) = inputs
 
-    var query = genericPasswordQuery(account: nil, service: service)
+    var query = keychainQuery(
+        account: nil,
+        service: service,
+        options: options,
+        authenticationContext: authenticationContext
+    )
     query[kSecReturnAttributes] = true
     query[kSecMatchLimit] = kSecMatchLimitAll
 
@@ -217,7 +410,6 @@ public func securityKeychainListAccounts(
         accounts.append(contentsOf: array.compactMap { $0[kSecAttrAccount as String] as? String })
     }
 
-    accounts.sort()
     accounts = Array(Set(accounts)).sorted()
     return jsonHandle(accounts)
 }

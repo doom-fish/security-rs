@@ -24,6 +24,31 @@ final class AuthorizationBox {
     }
 }
 
+final class SecretBox {
+    let bytes: UnsafeMutableRawBufferPointer
+    let count: Int
+
+    init(copying data: CFData) {
+        let length = CFDataGetLength(data)
+        bytes = UnsafeMutableRawBufferPointer.allocate(byteCount: max(length, 1), alignment: 1)
+        if length > 0, let source = CFDataGetBytePtr(data) {
+            bytes.baseAddress?.copyMemory(from: source, byteCount: length)
+        }
+        count = max(length, 0)
+    }
+
+    deinit {
+        if let baseAddress = bytes.baseAddress {
+            _ = memset_s(baseAddress, bytes.count, 0, bytes.count)
+        }
+        bytes.deallocate()
+    }
+}
+
+func retainSecret(_ data: CFData) -> UnsafeMutableRawPointer {
+    Unmanaged.passRetained(SecretBox(copying: data)).toOpaque()
+}
+
 func retain<T>(_ value: T) -> UnsafeMutableRawPointer {
     Unmanaged.passRetained(Box(value)).toOpaque()
 }
@@ -344,6 +369,35 @@ public func securityStringCopyUtf8(
     }
 
     return count
+}
+
+@_cdecl("security_secret_len")
+public func securitySecretLen(_ pointer: UnsafeMutableRawPointer?) -> Int {
+    guard let pointer,
+          let secret = Unmanaged<AnyObject>.fromOpaque(pointer).takeUnretainedValue() as? SecretBox
+    else {
+        return -1
+    }
+    return secret.count
+}
+
+@_cdecl("security_secret_copy_bytes")
+public func securitySecretCopyBytes(
+    _ pointer: UnsafeMutableRawPointer?,
+    _ buffer: UnsafeMutableRawPointer?,
+    _ capacity: Int
+) -> Int {
+    guard let pointer,
+          let secret = Unmanaged<AnyObject>.fromOpaque(pointer).takeUnretainedValue() as? SecretBox,
+          let buffer,
+          capacity >= secret.count
+    else {
+        return -1
+    }
+    if secret.count > 0, let source = secret.bytes.baseAddress {
+        buffer.copyMemory(from: source, byteCount: secret.count)
+    }
+    return secret.count
 }
 
 @_cdecl("security_data_len")

@@ -22,6 +22,7 @@ pub mod status {
     pub const ITEM_NOT_FOUND: OsStatus = -25_300;
     /// Mirrors a common `OSStatus` value from Security.framework.
     pub const INTERACTION_NOT_ALLOWED: OsStatus = -25_308;
+    pub const MISSING_ENTITLEMENT: OsStatus = -34_018;
 }
 
 /// Structured `OSStatus` error returned by `Security.framework`.

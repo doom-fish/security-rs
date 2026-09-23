@@ -15,7 +15,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let accounts = Keychain::list_accounts(&service)?;
     Keychain::delete(account, &service)?;
     println!(
-        "password={password} accounts={accounts:?} access_control_created={}",
+        "round_trip_ok={} password={password:?} accounts={accounts:?} access_control_created={}",
+        password.as_bytes() == b"secret-password",
         access_control.is_valid()
     );
     Ok(())

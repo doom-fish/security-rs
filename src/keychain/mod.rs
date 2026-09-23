@@ -1,7 +1,11 @@
+use std::ffi::{c_void, CString};
+
 use bitflags::bitflags;
+use serde_json::json;
 
 use crate::bridge::{self, Handle};
-use crate::error::Result;
+use crate::error::{Result, SecurityError};
+use crate::secret::SecretBytes;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,10 +34,11 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 /// Mirrors protection classes used by `SecAccessControlCreateWithFlags`.
 pub enum AccessControlProtection {
     /// Mirrors a `SecAccessControl` protection-class constant.
+    #[default]
     WhenUnlocked,
     /// Mirrors a `SecAccessControl` protection-class constant.
     AfterFirstUnlock,
@@ -92,6 +97,82 @@ impl AccessControl {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct KeychainOptions {
+    accessibility: AccessControlProtection,
+    access_control: Option<AccessControl>,
+    access_group: Option<String>,
+    synchronizable: bool,
+    data_protection_keychain: bool,
+    authentication_context: Option<Handle>,
+}
+
+impl KeychainOptions {
+    #[must_use]
+    pub fn accessibility(mut self, accessibility: AccessControlProtection) -> Self {
+        self.accessibility = accessibility;
+        self
+    }
+
+    #[must_use]
+    pub fn access_control(mut self, access_control: AccessControl) -> Self {
+        self.access_control = Some(access_control);
+        self
+    }
+
+    #[must_use]
+    pub fn access_group(mut self, access_group: impl Into<String>) -> Self {
+        self.access_group = Some(access_group.into());
+        self
+    }
+
+    #[must_use]
+    pub fn synchronizable(mut self, synchronizable: bool) -> Self {
+        self.synchronizable = synchronizable;
+        self
+    }
+
+    #[must_use]
+    pub fn data_protection_keychain(mut self, data_protection_keychain: bool) -> Self {
+        self.data_protection_keychain = data_protection_keychain;
+        self
+    }
+
+    #[allow(clippy::missing_safety_doc)]
+    pub unsafe fn authentication_context(mut self, la_context: *mut c_void) -> Result<Self> {
+        let raw = unsafe { bridge::security_authentication_context_retain(la_context) };
+        let handle = Handle::from_raw(raw).ok_or_else(|| {
+            SecurityError::InvalidArgument("authentication context must be an LAContext".to_owned())
+        })?;
+        self.authentication_context = Some(handle);
+        Ok(self)
+    }
+
+    fn bridge_json(&self) -> Result<CString> {
+        let mut options = json!({
+            "accessibility": self.accessibility.as_bridge_name(),
+            "synchronizable": self.synchronizable,
+            "data_protection_keychain": self.data_protection_keychain,
+        });
+        if let Some(access_group) = &self.access_group {
+            options["access_group"] = json!(access_group);
+        }
+        bridge::json_cstring(&options)
+    }
+
+    fn access_control_ptr(&self) -> *mut c_void {
+        self.access_control
+            .as_ref()
+            .map_or(std::ptr::null_mut(), |value| value.handle.as_ptr())
+    }
+
+    fn authentication_context_ptr(&self) -> *mut c_void {
+        self.authentication_context
+            .as_ref()
+            .map_or(std::ptr::null_mut(), Handle::as_ptr)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 /// Wraps a generic-password identity used with `SecItem` queries.
 pub struct KeychainEntry {
@@ -119,12 +200,12 @@ impl KeychainEntry {
     }
 
     /// Wraps the corresponding generic-password operation built on `SecItem`.
-    pub fn set(&self, password: &str) -> Result<()> {
-        Keychain::set(&self.account, &self.service, password)
+    pub fn set(&self, secret: impl AsRef<[u8]>) -> Result<()> {
+        Keychain::set(&self.account, &self.service, secret)
     }
 
     /// Wraps the corresponding generic-password operation built on `SecItem`.
-    pub fn get(&self) -> Result<String> {
+    pub fn get(&self) -> Result<SecretBytes> {
         Keychain::get(&self.account, &self.service)
     }
 
@@ -144,62 +225,108 @@ impl Keychain {
     }
 
     /// Wraps the corresponding generic-password `SecItem` operation.
-    pub fn set(account: &str, service: &str, password: &str) -> Result<()> {
-        let account = bridge::cstring(account)?;
-        let service = bridge::cstring(service)?;
-        let password = bridge::cstring(password)?;
-        let mut error = std::ptr::null_mut();
-        let status = unsafe {
-            bridge::security_keychain_set_password(
-                account.as_ptr(),
-                service.as_ptr(),
-                password.as_ptr(),
-                &raw mut error,
-            )
-        };
-        bridge::status_result("security_keychain_set_password", status, error)
+    pub fn set(account: &str, service: &str, secret: impl AsRef<[u8]>) -> Result<()> {
+        Self::set_with_options(account, service, secret, &KeychainOptions::default())
     }
 
     /// Wraps the corresponding generic-password `SecItem` operation.
-    pub fn get(account: &str, service: &str) -> Result<String> {
-        let account = bridge::cstring(account)?;
-        let service = bridge::cstring(service)?;
-        let mut status = 0;
-        let mut error = std::ptr::null_mut();
-        let raw = unsafe {
-            bridge::security_keychain_get_password(
-                account.as_ptr(),
-                service.as_ptr(),
-                &raw mut status,
-                &raw mut error,
-            )
-        };
-        bridge::required_string("security_keychain_get_password", raw, status, error)
+    pub fn get(account: &str, service: &str) -> Result<SecretBytes> {
+        Self::get_with_options(account, service, &KeychainOptions::default())
     }
 
     /// Wraps the corresponding generic-password `SecItem` operation.
     pub fn delete(account: &str, service: &str) -> Result<()> {
-        let account = bridge::cstring(account)?;
-        let service = bridge::cstring(service)?;
-        let mut error = std::ptr::null_mut();
-        let status = unsafe {
-            bridge::security_keychain_delete_password(
-                account.as_ptr(),
-                service.as_ptr(),
-                &raw mut error,
-            )
-        };
-        bridge::status_result("security_keychain_delete_password", status, error)
+        Self::delete_with_options(account, service, &KeychainOptions::default())
     }
 
     /// Wraps the corresponding generic-password `SecItem` operation.
     pub fn list_accounts(service: &str) -> Result<Vec<String>> {
+        Self::list_accounts_with_options(service, &KeychainOptions::default())
+    }
+
+    pub fn set_with_options(
+        account: &str,
+        service: &str,
+        secret: impl AsRef<[u8]>,
+        options: &KeychainOptions,
+    ) -> Result<()> {
+        let secret = secret.as_ref();
+        let account = bridge::cstring(account)?;
         let service = bridge::cstring(service)?;
+        let options_json = options.bridge_json()?;
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_keychain_set_item(
+                account.as_ptr(),
+                service.as_ptr(),
+                secret.as_ptr().cast(),
+                bridge::len_to_isize(secret.len())?,
+                options_json.as_ptr(),
+                options.access_control_ptr(),
+                options.authentication_context_ptr(),
+                &raw mut error,
+            )
+        };
+        bridge::status_result("security_keychain_set_item", status, error)
+    }
+
+    pub fn get_with_options(
+        account: &str,
+        service: &str,
+        options: &KeychainOptions,
+    ) -> Result<SecretBytes> {
+        let account = bridge::cstring(account)?;
+        let service = bridge::cstring(service)?;
+        let options_json = options.bridge_json()?;
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_keychain_copy_item(
+                account.as_ptr(),
+                service.as_ptr(),
+                options_json.as_ptr(),
+                options.authentication_context_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
+        };
+        bridge::required_secret("security_keychain_copy_item", raw, status, error)
+    }
+
+    pub fn delete_with_options(
+        account: &str,
+        service: &str,
+        options: &KeychainOptions,
+    ) -> Result<()> {
+        let account = bridge::cstring(account)?;
+        let service = bridge::cstring(service)?;
+        let options_json = options.bridge_json()?;
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_keychain_delete_item(
+                account.as_ptr(),
+                service.as_ptr(),
+                options_json.as_ptr(),
+                options.authentication_context_ptr(),
+                &raw mut error,
+            )
+        };
+        bridge::status_result("security_keychain_delete_item", status, error)
+    }
+
+    pub fn list_accounts_with_options(
+        service: &str,
+        options: &KeychainOptions,
+    ) -> Result<Vec<String>> {
+        let service = bridge::cstring(service)?;
+        let options_json = options.bridge_json()?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_keychain_list_accounts(
                 service.as_ptr(),
+                options_json.as_ptr(),
+                options.authentication_context_ptr(),
                 &raw mut status,
                 &raw mut error,
             )
@@ -247,6 +374,37 @@ mod tests {
             | AccessControlFlags::APPLICATION_PASSWORD;
 
         assert_eq!(AccessControlFlags::from_bits(flags.bits()), Some(flags));
+    }
+
+    #[test]
+    fn default_options_protect_items_when_unlocked() {
+        let json = KeychainOptions::default().bridge_json().unwrap();
+        let value: serde_json::Value = serde_json::from_str(json.to_str().unwrap()).unwrap();
+        assert_eq!(value["accessibility"], "when_unlocked");
+        assert_eq!(value["synchronizable"], false);
+        assert_eq!(value["data_protection_keychain"], false);
+        assert!(value.get("access_group").is_none());
+        assert_eq!(
+            AccessControlProtection::default(),
+            AccessControlProtection::WhenUnlocked
+        );
+    }
+
+    #[test]
+    fn options_serialize_every_selected_control() {
+        let options = KeychainOptions::default()
+            .accessibility(AccessControlProtection::WhenUnlockedThisDeviceOnly)
+            .access_group("TEAMID.group")
+            .synchronizable(true)
+            .data_protection_keychain(true);
+        let json = options.bridge_json().unwrap();
+        let value: serde_json::Value = serde_json::from_str(json.to_str().unwrap()).unwrap();
+        assert_eq!(value["accessibility"], "when_unlocked_this_device_only");
+        assert_eq!(value["access_group"], "TEAMID.group");
+        assert_eq!(value["synchronizable"], true);
+        assert_eq!(value["data_protection_keychain"], true);
+        assert!(options.access_control_ptr().is_null());
+        assert!(options.authentication_context_ptr().is_null());
     }
 
     #[test]
