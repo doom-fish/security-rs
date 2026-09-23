@@ -27,6 +27,18 @@ unsafe fn new_object(class: &std::ffi::CStr) -> *mut c_void {
     unsafe { send(objc_getClass(class.as_ptr()), c"new") }
 }
 
+struct RemoveOnDrop<'a> {
+    account: &'a str,
+    service: &'a str,
+    options: &'a KeychainOptions,
+}
+
+impl Drop for RemoveOnDrop<'_> {
+    fn drop(&mut self) {
+        let _ = Keychain::delete_with_options(self.account, self.service, self.options);
+    }
+}
+
 fn assert_needs_data_protection_entitlement_or(result: security::Result<()>) -> bool {
     match result {
         Ok(()) => true,
@@ -41,6 +53,12 @@ fn assert_needs_data_protection_entitlement_or(result: security::Result<()>) -> 
 fn generic_password_round_trip() -> security::Result<()> {
     let account = "integration-account";
     let service = common::unique_service("keychain");
+    let defaults = KeychainOptions::default();
+    let _cleanup = RemoveOnDrop {
+        account,
+        service: &service,
+        options: &defaults,
+    };
     Keychain::set(account, &service, "secret")?;
     let secret = Keychain::get(account, &service)?;
     assert_eq!(secret.as_str()?, "secret");
@@ -65,6 +83,11 @@ fn stores_binary_secrets_with_a_device_only_protection_class() -> security::Resu
     let secret = [0_u8, 0x9f, 0x92, 0x96, 0xff, 0x00, 0x01];
     let options = KeychainOptions::default()
         .accessibility(AccessControlProtection::WhenUnlockedThisDeviceOnly);
+    let _cleanup = RemoveOnDrop {
+        account,
+        service: &service,
+        options: &options,
+    };
     Keychain::set_with_options(account, &service, secret, &options)?;
     let stored = Keychain::get_with_options(account, &service, &options)?;
     assert_eq!(stored.as_bytes(), secret);
@@ -81,6 +104,12 @@ fn stores_binary_secrets_with_a_device_only_protection_class() -> security::Resu
 #[test]
 fn keychain_entry_reads_back_secrets() -> security::Result<()> {
     let service = common::unique_service("keychain-entry");
+    let defaults = KeychainOptions::default();
+    let _cleanup = RemoveOnDrop {
+        account: "entry-account",
+        service: &service,
+        options: &defaults,
+    };
     let entry = Keychain::entry("entry-account", service.as_str());
     entry.set(b"entry-secret")?;
     assert_eq!(entry.get()?.as_bytes(), b"entry-secret");
@@ -93,6 +122,11 @@ fn data_protection_keychain_is_requested() -> security::Result<()> {
     let account = "dp-account";
     let service = common::unique_service("keychain-dp");
     let options = KeychainOptions::default().data_protection_keychain(true);
+    let _cleanup = RemoveOnDrop {
+        account,
+        service: &service,
+        options: &options,
+    };
     if assert_needs_data_protection_entitlement_or(Keychain::set_with_options(
         account, &service, b"secret", &options,
     )) {
@@ -120,6 +154,11 @@ fn access_groups_and_synchronizable_items_are_requested() -> security::Result<()
             KeychainOptions::default().synchronizable(true),
         ),
     ] {
+        let _cleanup = RemoveOnDrop {
+            account,
+            service: &service,
+            options: &options,
+        };
         if assert_needs_data_protection_entitlement_or(Keychain::set_with_options(
             account, &service, b"secret", &options,
         )) {
@@ -138,6 +177,11 @@ fn access_control_is_attached_to_the_item() -> security::Result<()> {
         AccessControlFlags::USER_PRESENCE,
     )?;
     let options = KeychainOptions::default().access_control(access_control);
+    let _cleanup = RemoveOnDrop {
+        account,
+        service: &service,
+        options: &options,
+    };
     if assert_needs_data_protection_entitlement_or(Keychain::set_with_options(
         account, &service, b"secret", &options,
     )) {
@@ -157,6 +201,11 @@ fn authentication_context_accepts_only_la_contexts() -> security::Result<()> {
 
         let account = "context-account";
         let service = common::unique_service("keychain-context");
+        let _cleanup = RemoveOnDrop {
+            account,
+            service: &service,
+            options: &options,
+        };
         if assert_needs_data_protection_entitlement_or(Keychain::set_with_options(
             account, &service, b"secret", &options,
         )) {
