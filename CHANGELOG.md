@@ -63,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `Policy::revocation` fails for flags Security.framework rejects (such as 0).
 - **Breaking:** `SignatureAlgorithm` has new variants, so exhaustive matches need new arms.
 - Items stored without options are created with `kSecAttrAccessibleWhenUnlocked`.
+- `AccessControl` holds the retained `SecAccessControlRef` itself instead of a bridge box, so the
+  ref can be handed to other frameworks; the keychain bridge type-checks it.
 - `rust-version` is 1.82; depends on apple-cf 0.11 and doom-fish-utils 0.4.1.
 
 ### Added
@@ -72,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CodeStatus` and `SigningInformation::code_status`.
 - `CodeSigningFlags::{CHECK_TRUSTED_ANCHORS, NO_NETWORK_ACCESS, ENFORCE_REVOCATION_CHECKS,
   CONSIDER_EXPIRATION}`.
+- `AccessControl::as_ptr` (the borrowed `SecAccessControlRef`, for cryptokit-rs and
+  localauthentication-rs), `AccessControl::protection` and `AccessControl::flags` (the values it
+  was created with), and `Clone`, which shares the immutable object.
 - `KeychainOptions` (protection class, data protection keychain, access group, synchronizable,
   `AccessControl`, `LAContext` authentication context) and
   `Keychain::{set,get,delete,list_accounts}_with_options`; `SecretBytes`.

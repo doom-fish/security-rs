@@ -12,6 +12,8 @@ use security::{
 extern "C" {}
 
 extern "C" {
+    fn CFGetTypeID(cf: *const c_void) -> usize;
+    fn CFGetRetainCount(cf: *const c_void) -> isize;
     fn objc_getClass(name: *const c_char) -> *mut c_void;
     fn sel_registerName(name: *const c_char) -> *mut c_void;
     fn objc_msgSend();
@@ -236,5 +238,33 @@ fn creates_access_control() -> security::Result<()> {
         AccessControlFlags::PRIVATE_KEY_USAGE,
     )?;
     assert!(access_control.is_valid());
+    Ok(())
+}
+
+#[test]
+fn access_control_exposes_the_sec_access_control_it_wraps() -> security::Result<()> {
+    let flags = AccessControlFlags::PRIVATE_KEY_USAGE | AccessControlFlags::USER_PRESENCE;
+    let access_control =
+        AccessControl::create(AccessControlProtection::WhenUnlockedThisDeviceOnly, flags)?;
+    assert_eq!(
+        access_control.protection(),
+        AccessControlProtection::WhenUnlockedThisDeviceOnly
+    );
+    assert_eq!(access_control.flags(), flags);
+
+    let raw = access_control.as_ptr();
+    assert!(!raw.is_null());
+    assert_eq!(unsafe { CFGetTypeID(raw) }, AccessControl::type_id());
+
+    let retains = unsafe { CFGetRetainCount(raw) };
+    let copy = access_control.clone();
+    assert_eq!(copy.as_ptr(), raw);
+    assert_eq!(unsafe { CFGetRetainCount(raw) }, retains + 1);
+    drop(copy);
+    assert_eq!(unsafe { CFGetRetainCount(raw) }, retains);
+    assert_eq!(
+        unsafe { CFGetTypeID(access_control.as_ptr()) },
+        AccessControl::type_id()
+    );
     Ok(())
 }

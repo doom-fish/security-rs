@@ -66,7 +66,18 @@ public func securityAccessControlCreate(
         return nil
     }
 
-    return retain(accessControl)
+    return Unmanaged.passRetained(accessControl).toOpaque()
+}
+
+private func secAccessControl(_ pointer: UnsafeMutableRawPointer?) -> SecAccessControl? {
+    guard let pointer else {
+        return nil
+    }
+    let object = Unmanaged<AnyObject>.fromOpaque(pointer).takeUnretainedValue()
+    guard CFGetTypeID(object) == SecAccessControlGetTypeID() else {
+        return nil
+    }
+    return unsafeDowncast(object, to: SecAccessControl.self)
 }
 
 private struct KeychainQueryOptions {
@@ -207,7 +218,7 @@ public func securityKeychainSetItem(
         setError(errorOut, "account and secret data are required")
         return errSecParam
     }
-    let accessControl = unbox(accessControlPointer, as: SecAccessControl.self)
+    let accessControl = secAccessControl(accessControlPointer)
     guard accessControlPointer == nil || accessControl != nil else {
         setError(errorOut, "access control handle is invalid")
         return errSecParam

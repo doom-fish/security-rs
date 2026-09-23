@@ -3,6 +3,8 @@ use std::ffi::{c_void, CString};
 use bitflags::bitflags;
 use serde_json::json;
 
+use apple_cf::cf::CFType;
+
 use crate::bridge::{self, Handle};
 use crate::error::{Result, SecurityError};
 use crate::secret::SecretBytes;
@@ -62,10 +64,12 @@ impl AccessControlProtection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Wraps `SecAccessControlRef`.
 pub struct AccessControl {
-    handle: Handle,
+    object: CFType,
+    protection: AccessControlProtection,
+    flags: AccessControlFlags,
 }
 
 impl AccessControl {
@@ -76,24 +80,46 @@ impl AccessControl {
 
     /// Wraps the corresponding `SecAccessControlRef` operation.
     pub fn create(protection: AccessControlProtection, flags: AccessControlFlags) -> Result<Self> {
-        let protection = bridge::cstring(protection.as_bridge_name())?;
+        let protection_name = bridge::cstring(protection.as_bridge_name())?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_access_control_create(
-                protection.as_ptr(),
+                protection_name.as_ptr(),
                 flags.bits(),
                 &raw mut status,
                 &raw mut error,
             )
         };
-        bridge::required_handle("security_access_control_create", raw, status, error)
-            .map(|handle| Self { handle })
+        let Some(object) = (unsafe { CFType::from_raw(raw) }) else {
+            return Err(bridge::status_error(
+                "security_access_control_create",
+                status,
+                error,
+            )?);
+        };
+        Ok(Self {
+            object,
+            protection,
+            flags,
+        })
     }
 
     /// Wraps the corresponding `SecAccessControlRef` operation.
     pub fn is_valid(&self) -> bool {
-        !self.handle.as_ptr().is_null()
+        !self.object.as_ptr().is_null()
+    }
+
+    pub const fn protection(&self) -> AccessControlProtection {
+        self.protection
+    }
+
+    pub const fn flags(&self) -> AccessControlFlags {
+        self.flags
+    }
+
+    pub const fn as_ptr(&self) -> *mut c_void {
+        self.object.as_ptr()
     }
 }
 
@@ -163,7 +189,7 @@ impl KeychainOptions {
     fn access_control_ptr(&self) -> *mut c_void {
         self.access_control
             .as_ref()
-            .map_or(std::ptr::null_mut(), |value| value.handle.as_ptr())
+            .map_or(std::ptr::null_mut(), AccessControl::as_ptr)
     }
 
     fn authentication_context_ptr(&self) -> *mut c_void {
