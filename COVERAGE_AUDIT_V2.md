@@ -1,12 +1,14 @@
 # security-rs coverage audit v2 (vs MacOSX26.2.sdk)
 
 SDK_PUBLIC_SYMBOLS: 321
-VERIFIED: 157
+VERIFIED: 158
 GAPS: 0
-EXEMPT: 164
+EXEMPT: 163
 COVERAGE_PCT: 100.00
 
-Re-audited against MacOSX26.2.sdk. Verified all 157 safe-wrapper implementations in the crate (`src/` and `swift-bridge/`) against Security.framework public headers. Re-validated all 164 EXEMPT items by spot-checking SDK availability attributes; exemptions are valid (deprecated APIs, SecureTransport sunset, out-of-scope Transform headers).
+Re-audited against MacOSX26.2.sdk. Verified all 157 safe-wrapper implementations (158 after the 0.6 corrections below) in the crate (`src/` and `swift-bridge/`) against Security.framework public headers. Re-validated all 164 EXEMPT items (163 after the 0.6 corrections below) by spot-checking SDK availability attributes; exemptions are valid (deprecated APIs, SecureTransport sunset, out-of-scope Transform headers).
+
+> **0.6 corrections.** Earlier revisions of this table listed `SecCodeCheckValidity[WithErrors]` as verified through `StaticCode`, where every call failed; `SecAccessControlCreateWithFlags` although no API accepted the object; `SecTaskCreateWithAuditToken` although only the current process could be targeted; and `SecCodeCreateWithXPCMessage` as exempt. Those rows now name the wrappers that actually use them. "Verified" means a safe wrapper calls the function; it says nothing about how much of the function's option space is exposed.
 
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
@@ -58,7 +60,7 @@ Re-audited against MacOSX26.2.sdk. Verified all 157 safe-wrapper implementations
 | CMSEncoderSetHasDetachedContent | function | CMSEncoder.h | CmsEncoder::set_has_detached_content, Cms::encode_content |
 | CMSEncoderSetSignerAlgorithm | function | CMSEncoder.h | CmsEncoder::set_signer_algorithm |
 | CMSEncoderUpdateContent | function | CMSEncoder.h | CmsEncoder::update_content |
-| SecAccessControlCreateWithFlags | function | SecAccessControl.h | AccessControl::create |
+| SecAccessControlCreateWithFlags | function | SecAccessControl.h | AccessControl::create (attached to items via KeychainOptions::access_control) |
 | SecAccessControlGetTypeID | function | SecAccessControl.h | AccessControl::type_id |
 | SecCertificateAddToKeychain | function | SecCertificate.h | Certificate::add_to_keychain |
 | SecCertificateCopyCommonName | function | SecCertificate.h | Certificate::common_name |
@@ -78,10 +80,11 @@ Re-audited against MacOSX26.2.sdk. Verified all 157 safe-wrapper implementations
 | SecCertificateCreateWithData | function | SecCertificate.h | Certificate::from_der, Certificate::from_pem |
 | SecCertificateGetTypeID | function | SecCertificate.h | Certificate::type_id |
 | SecCertificateSetPreferred | function | SecCertificate.h | Certificate::set_preferred |
-| SecCodeCheckValidity | function | SecCode.h | StaticCode::check_validity |
-| SecCodeCheckValidityWithErrors | function | SecCode.h | StaticCode::check_validity_with_errors |
+| SecCodeCheckValidity | function | SecCode.h | Code::check_validity |
+| SecCodeCheckValidityWithErrors | function | SecCode.h | Code::check_validity |
 | SecCodeCopyDesignatedRequirement | function | SecCode.h | StaticCode::designated_requirement |
-| SecCodeCopyGuestWithAttributes | function | SecCode.h | Code::guest_with_attributes |
+| SecCodeCopyGuestWithAttributes | function | SecCode.h | Code::guest_with_attributes, Code::guest_with_audit_token |
+| SecCodeCreateWithXPCMessage | function | SecCode.h | Code::from_xpc_message (unsafe; raw xpc_object_t) |
 | SecCodeCopyHost | function | SecCode.h | Code::host |
 | SecCodeCopyPath | function | SecCode.h | StaticCode::path |
 | SecCodeCopySelf | function | SecCode.h | Code::current |
@@ -134,7 +137,7 @@ Re-audited against MacOSX26.2.sdk. Verified all 157 safe-wrapper implementations
 | SecRequirementCreateWithStringAndErrors | function | SecRequirement.h | Requirement::from_string_with_errors |
 | SecRequirementGetTypeID | function | SecRequirement.h | Requirement::type_id |
 | SecStaticCodeCheckValidity | function | SecStaticCode.h | StaticCode::check_static_validity |
-| SecStaticCodeCheckValidityWithErrors | function | SecStaticCode.h | StaticCode::check_static_validity_with_errors |
+| SecStaticCodeCheckValidityWithErrors | function | SecStaticCode.h | StaticCode::check_validity, StaticCode::check_validity_with_errors, StaticCode::check_static_validity_with_errors |
 | SecStaticCodeCreateWithPath | function | SecStaticCode.h | StaticCode::from_path |
 | SecStaticCodeCreateWithPathAndAttributes | function | SecStaticCode.h | StaticCode::from_path_with_attributes |
 | SecStaticCodeGetTypeID | function | SecStaticCode.h | StaticCode::type_id |
@@ -142,7 +145,7 @@ Re-audited against MacOSX26.2.sdk. Verified all 157 safe-wrapper implementations
 | SecTaskCopyValueForEntitlement | function | SecTask.h | Task::entitlement |
 | SecTaskCopyValuesForEntitlements | function | SecTask.h | Task::entitlements |
 | SecTaskCreateFromSelf | function | SecTask.h | Task::current |
-| SecTaskCreateWithAuditToken | function | SecTask.h | Task::current_with_audit_token |
+| SecTaskCreateWithAuditToken | function | SecTask.h | Task::current_with_audit_token, Task::from_audit_token, Code::task |
 | SecTaskGetTypeID | function | SecTask.h | Task::type_id |
 | SecTrustCopyAnchorCertificates | function | SecTrust.h | Trust::system_anchor_certificates |
 | SecTrustCopyCertificateChain | function | SecTrust.h | Trust::certificate_chain |
@@ -271,7 +274,6 @@ Re-audited against MacOSX26.2.sdk. Verified all 157 safe-wrapper implementations
 | SecCertificateGetSubject | function | SecCertificate.h | Deprecated API; excluded from coverage. | deprecated |
 | SecCertificateGetType | function | SecCertificate.h | Deprecated API; excluded from coverage. | deprecated |
 | SecCertificateSetPreference | function | SecCertificate.h | Deprecated API; excluded from coverage. | deprecated |
-| SecCodeCreateWithXPCMessage | function | SecCode.h | Requires an inbound xpc_object_t message with an attached sender audit token; the safe crate intentionally avoids exposing raw XPC message objects. | TARGET_OS_OSX; xpc_object_t sender-context API. |
 | SecDecodeTransformCreate | function | SecDecodeTransform.h | Deprecated transform API; security-rs uses it for Transform::decode_base64, but deprecated surface is excluded from coverage. | API_DEPRECATED("SecTransform is no longer supported", macos(10.7, 13.0)) API_UNAVAILABLE(ios, tvos, watchos, macCatalyst); |
 | SecDecryptTransformCreate | function | SecEncryptTransform.h | Deprecated transform API family; excluded from coverage. | API_DEPRECATED("SecTransform is no longer supported", macos(10.7, 13.0)) API_UNAVAILABLE(ios, tvos, watchos, macCatalyst); |
 | SecDecryptTransformGetTypeID | function | SecEncryptTransform.h | Deprecated transform API family; excluded from coverage. | API_DEPRECATED("SecTransform is no longer supported", macos(10.7, 13.0)) API_UNAVAILABLE(ios, tvos, watchos, macCatalyst); |
