@@ -502,10 +502,34 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
-    pub(crate) fn security_static_code_check_validity(
+    pub(crate) fn security_code_check_validity(
         pointer: *mut c_void,
+        flags: u32,
+        requirement_pointer: *mut c_void,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
+    pub(crate) fn security_code_copy_signing_information(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_code_copy_audit_token(pointer: *mut c_void, token_out: *mut u32) -> bool;
+    pub(crate) fn security_audit_token_copy_current(token_out: *mut u32) -> bool;
+    pub(crate) fn security_code_copy_guest_with_audit_token(
+        token: *const u32,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_code_create_with_xpc_message(
+        message: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_task_create_with_audit_token(
+        token: *const u32,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
     pub(crate) fn security_static_code_copy_path(
         pointer: *mut c_void,
         status_out: *mut OsStatus,
@@ -577,12 +601,6 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
-    pub(crate) fn security_static_code_check_validity_with_errors(
-        pointer: *mut c_void,
-        flags: u32,
-        requirement_pointer: *mut c_void,
-        error_out: *mut *mut c_void,
-    ) -> OsStatus;
     pub(crate) fn security_static_code_check_static_validity(
         pointer: *mut c_void,
         flags: u32,

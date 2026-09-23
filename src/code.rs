@@ -2,10 +2,11 @@ use base64::Engine;
 use bitflags::bitflags;
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 
 use crate::bridge;
-use crate::error::Result;
+use crate::error::{Result, SecurityError};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -43,13 +44,70 @@ bitflags! {
         const ALLOW_NETWORK_ACCESS = 1 << 16;
         /// Mirrors a `SecCSFlags` bit.
         const FAST_EXECUTABLE_VALIDATION = 1 << 17;
+        const CHECK_TRUSTED_ANCHORS = 1 << 27;
+        const NO_NETWORK_ACCESS = 1 << 29;
+        const ENFORCE_REVOCATION_CHECKS = 1 << 30;
+        const CONSIDER_EXPIRATION = 1 << 31;
+    }
+}
 
-        /// Mirrors a `SecCSFlags` bit.
-        const SIGNING_INFORMATION = 1 << 1;
-        /// Mirrors a `SecCSFlags` bit.
-        const DYNAMIC_INFORMATION = 1 << 3;
-        /// Mirrors a `SecCSFlags` bit.
-        const USE_ALL_ARCHITECTURES = 1 << 0;
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct CodeStatus: u32 {
+        const VALID = 0x0000_0001;
+        const HARD = 0x0000_0100;
+        const KILL = 0x0000_0200;
+        const PLATFORM = 0x0400_0000;
+        const DEBUGGED = 0x1000_0000;
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AuditToken([u32; 8]);
+
+impl AuditToken {
+    pub const LEN: usize = 32;
+
+    pub const fn from_raw(values: [u32; 8]) -> Self {
+        Self(values)
+    }
+
+    pub const fn to_raw(self) -> [u32; 8] {
+        self.0
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() != Self::LEN {
+            return Err(SecurityError::InvalidArgument(format!(
+                "an audit token is {} bytes, got {}",
+                Self::LEN,
+                bytes.len()
+            )));
+        }
+        let mut values = [0_u32; 8];
+        for (value, chunk) in values.iter_mut().zip(bytes.chunks_exact(4)) {
+            *value = u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+        }
+        Ok(Self(values))
+    }
+
+    pub fn to_bytes(self) -> [u8; 32] {
+        let mut bytes = [0_u8; 32];
+        for (chunk, value) in bytes.chunks_exact_mut(4).zip(self.0) {
+            chunk.copy_from_slice(&value.to_ne_bytes());
+        }
+        bytes
+    }
+
+    pub fn current() -> Result<Self> {
+        let mut values = [0_u32; 8];
+        if unsafe { bridge::security_audit_token_copy_current(values.as_mut_ptr()) } {
+            Ok(Self(values))
+        } else {
+            Err(SecurityError::InvalidArgument(
+                "task_info(TASK_AUDIT_TOKEN) failed for the current task".to_owned(),
+            ))
+        }
     }
 }
 
@@ -92,6 +150,33 @@ impl SigningInformation {
     /// Wraps the corresponding Security.framework operation for `SigningInformation`.
     pub const fn is_signed(&self) -> bool {
         self.identifier.is_some()
+    }
+
+    pub fn code_status(&self) -> Option<CodeStatus> {
+        self.status.map(CodeStatus::from_bits_retain)
+    }
+
+    fn from_json(value: &Value) -> Self {
+        let entitlements = find_object(
+            value,
+            &[
+                "entitlements-dict",
+                "EntitlementsDict",
+                "entitlements",
+                "Entitlements",
+            ],
+        );
+        Self {
+            identifier: find_string(value, &["identifier", "Identifier"]),
+            team_identifier: find_string(value, &["teamid", "TeamIdentifier", "teamIdentifier"]),
+            entitlements: entitlements.map(json_object_to_map).unwrap_or_default(),
+            sandboxed: matches!(
+                entitlements.and_then(|value| value.get("com.apple.security.app-sandbox")),
+                Some(Value::Bool(true))
+            ),
+            status: find_integer(value, &["status", "Status"])
+                .and_then(|value| u32::try_from(value).ok()),
+        }
     }
 }
 
@@ -171,14 +256,95 @@ impl Code {
             .map(StaticCode::from_handle)
     }
 
+    pub fn guest_with_audit_token(audit_token: &AuditToken) -> Result<Self> {
+        let values = audit_token.to_raw();
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_code_copy_guest_with_audit_token(
+                values.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
+        };
+        bridge::required_handle(
+            "security_code_copy_guest_with_audit_token",
+            raw,
+            status,
+            error,
+        )
+        .map(|handle| Self { handle })
+    }
+
+    #[allow(clippy::missing_safety_doc)]
+    pub unsafe fn from_xpc_message(message: *mut c_void) -> Result<Self> {
+        if message.is_null() {
+            return Err(SecurityError::InvalidArgument(
+                "an XPC message object is required".to_owned(),
+            ));
+        }
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_code_create_with_xpc_message(message, &raw mut status, &raw mut error)
+        };
+        bridge::required_handle("security_code_create_with_xpc_message", raw, status, error)
+            .map(|handle| Self { handle })
+    }
+
+    pub fn audit_token(&self) -> Option<AuditToken> {
+        let mut values = [0_u32; 8];
+        unsafe { bridge::security_code_copy_audit_token(self.handle.as_ptr(), values.as_mut_ptr()) }
+            .then_some(AuditToken(values))
+    }
+
+    pub fn check_validity(
+        &self,
+        flags: CodeSigningFlags,
+        requirement: Option<&Requirement>,
+    ) -> Result<()> {
+        let mut error = std::ptr::null_mut();
+        let status = unsafe {
+            bridge::security_code_check_validity(
+                self.handle.as_ptr(),
+                flags.bits(),
+                requirement.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
+                &raw mut error,
+            )
+        };
+        bridge::status_result("security_code_check_validity", status, error)
+    }
+
     /// Wraps the corresponding `SecCodeRef` operation.
     pub fn signing_information(&self) -> Result<SigningInformation> {
-        self.static_code()?.signing_information()
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_code_copy_signing_information(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
+        };
+        let value: Value = bridge::required_json(
+            "security_code_copy_signing_information",
+            raw,
+            status,
+            error,
+        )?;
+        Ok(SigningInformation::from_json(&value))
     }
 
     /// Wraps the corresponding `SecCodeRef` operation.
     pub fn task(&self) -> Result<Task> {
-        Task::current()
+        let audit_token = self.audit_token().ok_or_else(|| {
+            SecurityError::Unsupported(
+                "this code object was not looked up by audit token, so its task cannot be \
+                 identified without a PID race; use Code::guest_with_audit_token"
+                    .to_owned(),
+            )
+        })?;
+        Task::from_audit_token(&audit_token)
     }
 }
 
@@ -348,9 +514,18 @@ impl StaticCode {
     pub fn check_validity(&self) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_static_code_check_validity(self.handle.as_ptr(), &raw mut error)
+            bridge::security_static_code_check_static_validity_with_errors(
+                self.handle.as_ptr(),
+                CodeSigningFlags::empty().bits(),
+                std::ptr::null_mut(),
+                &raw mut error,
+            )
         };
-        bridge::status_result("security_static_code_check_validity", status, error)
+        bridge::status_result(
+            "security_static_code_check_static_validity_with_errors",
+            status,
+            error,
+        )
     }
 
     /// Wraps the corresponding `SecStaticCodeRef` operation.
@@ -361,7 +536,7 @@ impl StaticCode {
     ) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_static_code_check_validity_with_errors(
+            bridge::security_static_code_check_static_validity_with_errors(
                 self.handle.as_ptr(),
                 flags.bits(),
                 requirement.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
@@ -369,7 +544,7 @@ impl StaticCode {
             )
         };
         bridge::status_result(
-            "security_static_code_check_validity_with_errors",
+            "security_static_code_check_static_validity_with_errors",
             status,
             error,
         )
@@ -466,36 +641,7 @@ impl StaticCode {
             status,
             error,
         )?;
-        Ok(SigningInformation {
-            identifier: find_string(&value, &["identifier", "Identifier"]),
-            team_identifier: find_string(&value, &["teamid", "TeamIdentifier", "teamIdentifier"]),
-            entitlements: find_object(
-                &value,
-                &[
-                    "entitlements-dict",
-                    "EntitlementsDict",
-                    "entitlements",
-                    "Entitlements",
-                ],
-            )
-            .map(json_object_to_map)
-            .unwrap_or_default(),
-            sandboxed: matches!(
-                find_object(
-                    &value,
-                    &[
-                        "entitlements-dict",
-                        "EntitlementsDict",
-                        "entitlements",
-                        "Entitlements",
-                    ],
-                )
-                .and_then(|value| value.get("com.apple.security.app-sandbox")),
-                Some(Value::Bool(true))
-            ),
-            status: find_integer(&value, &["status", "Status"])
-                .and_then(|value| u32::try_from(value).ok()),
-        })
+        Ok(SigningInformation::from_json(&value))
     }
 
     /// Wraps the corresponding `SecStaticCodeRef` operation.
@@ -553,6 +699,21 @@ impl Task {
         let raw =
             unsafe { bridge::security_task_create_from_self(&raw mut status, &raw mut error) };
         bridge::required_handle("security_task_create_from_self", raw, status, error)
+            .map(|handle| Self { handle })
+    }
+
+    pub fn from_audit_token(audit_token: &AuditToken) -> Result<Self> {
+        let values = audit_token.to_raw();
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_task_create_with_audit_token(
+                values.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
+        };
+        bridge::required_handle("security_task_create_with_audit_token", raw, status, error)
             .map(|handle| Self { handle })
     }
 

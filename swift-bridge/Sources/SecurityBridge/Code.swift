@@ -1,6 +1,51 @@
 import Darwin
 import Foundation
 import Security
+import XPC
+
+struct CodeRecord {
+    let code: SecCode
+    let auditToken: audit_token_t?
+}
+
+private func retainCode(_ code: SecCode, auditToken: audit_token_t? = nil) -> UnsafeMutableRawPointer {
+    retain(CodeRecord(code: code, auditToken: auditToken))
+}
+
+private func codeFromPointer(_ pointer: UnsafeMutableRawPointer?) -> SecCode? {
+    unbox(pointer, as: CodeRecord.self)?.code
+}
+
+private func auditTokenData(_ token: audit_token_t) -> Data {
+    withUnsafeBytes(of: token) { Data($0) }
+}
+
+private func auditToken(fromData data: Data) -> audit_token_t? {
+    guard data.count == MemoryLayout<audit_token_t>.size else {
+        return nil
+    }
+    var token = audit_token_t()
+    _ = withUnsafeMutableBytes(of: &token) { data.copyBytes(to: $0) }
+    return token
+}
+
+private func auditToken(fromWords pointer: UnsafePointer<UInt32>?) -> audit_token_t? {
+    guard let pointer else {
+        return nil
+    }
+    return auditToken(fromData: Data(bytes: pointer, count: MemoryLayout<audit_token_t>.size))
+}
+
+private func writeAuditToken(_ token: audit_token_t, to pointer: UnsafeMutablePointer<UInt32>?) -> Bool {
+    guard let pointer else {
+        return false
+    }
+    withUnsafeBytes(of: token) { bytes in
+        UnsafeMutableRawBufferPointer(start: UnsafeMutableRawPointer(pointer), count: bytes.count)
+            .copyMemory(from: bytes)
+    }
+    return true
+}
 
 private func requirementText(_ requirement: SecRequirement?) -> UnsafeMutableRawPointer? {
     guard let requirement else {
@@ -49,7 +94,14 @@ private func codeAttributes(
 
     var mapped: [CFString: Any] = [:]
     for (key, value) in dictionary {
-        mapped[keyMapper(key)] = value
+        let mappedKey = keyMapper(key)
+        if mappedKey == kSecGuestAttributeAudit || mappedKey == kSecGuestAttributeHash,
+           let data = jsonData(fromJSONObject: value)
+        {
+            mapped[mappedKey] = data
+        } else {
+            mapped[mappedKey] = value
+        }
     }
     return mapped as CFDictionary
 }
@@ -81,7 +133,7 @@ public func securityCodeCopySelf(
         return nil
     }
 
-    return retain(code)
+    return retainCode(code, auditToken: currentAuditToken())
 }
 
 @_cdecl("security_code_copy_static_code")
@@ -93,7 +145,7 @@ public func securityCodeCopyStaticCode(
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let code = unbox(codePointer, as: SecCode.self) else {
+    guard let code = codeFromPointer(codePointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "code handle is required")
         return nil
@@ -110,23 +162,156 @@ public func securityCodeCopyStaticCode(
     return retain(staticCode)
 }
 
-@_cdecl("security_static_code_check_validity")
-public func securityStaticCodeCheckValidity(
-    _ staticCodePointer: UnsafeMutableRawPointer?,
+@_cdecl("security_code_check_validity")
+public func securityCodeCheckValidity(
+    _ codePointer: UnsafeMutableRawPointer?,
+    _ flags: UInt32,
+    _ requirementPointer: UnsafeMutableRawPointer?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
-    guard let staticCode = unbox(staticCodePointer, as: SecStaticCode.self) else {
-        setError(errorOut, "static code handle is required")
+    guard let code = codeFromPointer(codePointer) else {
+        setError(errorOut, "code handle is required")
+        return errSecParam
+    }
+    let requirement = unbox(requirementPointer, as: SecRequirement.self)
+    guard requirementPointer == nil || requirement != nil else {
+        setError(errorOut, "requirement handle is invalid")
         return errSecParam
     }
 
-    let status = SecCodeCheckValidity(unsafeBitCast(staticCode, to: SecCode.self), SecCSFlags(), nil)
+    var error: Unmanaged<CFError>?
+    let status = SecCodeCheckValidityWithErrors(code, SecCSFlags(rawValue: flags), requirement, &error)
     if status != errSecSuccess {
-        setError(errorOut, "SecCodeCheckValidity failed: \(statusMessage(status))")
+        if let error {
+            setError(errorOut, error)
+        } else {
+            setError(errorOut, "SecCodeCheckValidityWithErrors failed: \(statusMessage(status))")
+        }
     }
     return status
+}
+
+@_cdecl("security_code_copy_signing_information")
+public func securityCodeCopySigningInformation(
+    _ codePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let code = codeFromPointer(codePointer) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "code handle is required")
+        return nil
+    }
+
+    let flags = SecCSFlags(rawValue: kSecCSSigningInformation | kSecCSDynamicInformation)
+    var information: CFDictionary?
+    let status = SecCodeCopySigningInformation(unsafeBitCast(code, to: SecStaticCode.self), flags, &information)
+    guard status == errSecSuccess, let information else {
+        setStatus(statusOut, status)
+        setError(errorOut, "SecCodeCopySigningInformation failed: \(statusMessage(status))")
+        return nil
+    }
+
+    return jsonHandle(information)
+}
+
+@_cdecl("security_code_copy_audit_token")
+public func securityCodeCopyAuditToken(
+    _ codePointer: UnsafeMutableRawPointer?,
+    _ tokenOut: UnsafeMutablePointer<UInt32>?
+) -> Bool {
+    guard let token = unbox(codePointer, as: CodeRecord.self)?.auditToken else {
+        return false
+    }
+    return writeAuditToken(token, to: tokenOut)
+}
+
+@_cdecl("security_audit_token_copy_current")
+public func securityAuditTokenCopyCurrent(_ tokenOut: UnsafeMutablePointer<UInt32>?) -> Bool {
+    guard let token = currentAuditToken() else {
+        return false
+    }
+    return writeAuditToken(token, to: tokenOut)
+}
+
+@_cdecl("security_code_copy_guest_with_audit_token")
+public func securityCodeCopyGuestWithAuditToken(
+    _ tokenPointer: UnsafePointer<UInt32>?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let token = auditToken(fromWords: tokenPointer) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "audit token is required")
+        return nil
+    }
+
+    var guest: SecCode?
+    let attributes = [kSecGuestAttributeAudit: auditTokenData(token)] as CFDictionary
+    let status = SecCodeCopyGuestWithAttributes(nil, attributes, SecCSFlags(), &guest)
+    guard status == errSecSuccess, let guest else {
+        setStatus(statusOut, status)
+        setError(errorOut, "SecCodeCopyGuestWithAttributes failed: \(statusMessage(status))")
+        return nil
+    }
+    return retainCode(guest, auditToken: token)
+}
+
+@_cdecl("security_code_create_with_xpc_message")
+public func securityCodeCreateWithXPCMessage(
+    _ messagePointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let messagePointer,
+          let message = Unmanaged<AnyObject>.fromOpaque(messagePointer).takeUnretainedValue() as? xpc_object_t
+    else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "an XPC message object is required")
+        return nil
+    }
+
+    var code: SecCode?
+    let status = SecCodeCreateWithXPCMessage(message, SecCSFlags(), &code)
+    guard status == errSecSuccess, let code else {
+        setStatus(statusOut, status == errSecSuccess ? errSecParam : status)
+        setError(errorOut, "SecCodeCreateWithXPCMessage failed: \(statusMessage(status))")
+        return nil
+    }
+    return retainCode(code)
+}
+
+@_cdecl("security_task_create_with_audit_token")
+public func securityTaskCreateWithAuditToken(
+    _ tokenPointer: UnsafePointer<UInt32>?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let token = auditToken(fromWords: tokenPointer) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "audit token is required")
+        return nil
+    }
+    guard let task = SecTaskCreateWithAuditToken(nil, token) else {
+        setStatus(statusOut, errSecCSNoSuchCode)
+        setError(errorOut, "SecTaskCreateWithAuditToken found no task for the audit token")
+        return nil
+    }
+    return retain(task)
 }
 
 @_cdecl("security_static_code_copy_path")
@@ -196,7 +381,7 @@ public func securityStaticCodeCopySigningInformation(
         return nil
     }
 
-    let flags = SecCSFlags(rawValue: kSecCSSigningInformation | kSecCSDynamicInformation)
+    let flags = SecCSFlags(rawValue: kSecCSSigningInformation)
     var information: CFDictionary?
     let status = SecCodeCopySigningInformation(staticCode, flags, &information)
     guard status == errSecSuccess, let information else {
@@ -492,37 +677,6 @@ public func securityStaticCodeCreateWithPathAndAttributes(
     return retain(staticCode)
 }
 
-@_cdecl("security_static_code_check_validity_with_errors")
-public func securityStaticCodeCheckValidityWithErrors(
-    _ staticCodePointer: UnsafeMutableRawPointer?,
-    _ flags: UInt32,
-    _ requirementPointer: UnsafeMutableRawPointer?,
-    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
-) -> Int32 {
-    clearError(errorOut)
-
-    guard let staticCode = unbox(staticCodePointer, as: SecStaticCode.self) else {
-        setError(errorOut, "static code handle is required")
-        return errSecParam
-    }
-
-    var error: Unmanaged<CFError>?
-    let status = SecCodeCheckValidityWithErrors(
-        unsafeBitCast(staticCode, to: SecCode.self),
-        SecCSFlags(rawValue: flags),
-        unbox(requirementPointer, as: SecRequirement.self),
-        &error
-    )
-    if status != errSecSuccess {
-        if let error {
-            setError(errorOut, error)
-        } else {
-            setError(errorOut, "SecCodeCheckValidityWithErrors failed: \(statusMessage(status))")
-        }
-    }
-    return status
-}
-
 @_cdecl("security_static_code_check_static_validity")
 public func securityStaticCodeCheckStaticValidity(
     _ staticCodePointer: UnsafeMutableRawPointer?,
@@ -536,12 +690,13 @@ public func securityStaticCodeCheckStaticValidity(
         setError(errorOut, "static code handle is required")
         return errSecParam
     }
+    let requirement = unbox(requirementPointer, as: SecRequirement.self)
+    guard requirementPointer == nil || requirement != nil else {
+        setError(errorOut, "requirement handle is invalid")
+        return errSecParam
+    }
 
-    let status = SecStaticCodeCheckValidity(
-        staticCode,
-        SecCSFlags(rawValue: flags),
-        unbox(requirementPointer, as: SecRequirement.self)
-    )
+    let status = SecStaticCodeCheckValidity(staticCode, SecCSFlags(rawValue: flags), requirement)
     if status != errSecSuccess {
         setError(errorOut, "SecStaticCodeCheckValidity failed: \(statusMessage(status))")
     }
@@ -561,14 +716,14 @@ public func securityStaticCodeCheckStaticValidityWithErrors(
         setError(errorOut, "static code handle is required")
         return errSecParam
     }
+    let requirement = unbox(requirementPointer, as: SecRequirement.self)
+    guard requirementPointer == nil || requirement != nil else {
+        setError(errorOut, "requirement handle is invalid")
+        return errSecParam
+    }
 
     var error: Unmanaged<CFError>?
-    let status = SecStaticCodeCheckValidityWithErrors(
-        staticCode,
-        SecCSFlags(rawValue: flags),
-        unbox(requirementPointer, as: SecRequirement.self),
-        &error
-    )
+    let status = SecStaticCodeCheckValidityWithErrors(staticCode, SecCSFlags(rawValue: flags), requirement, &error)
     if status != errSecSuccess {
         if let error {
             setError(errorOut, error)
@@ -588,7 +743,7 @@ public func securityCodeCopyHost(
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let code = unbox(codePointer, as: SecCode.self) else {
+    guard let code = codeFromPointer(codePointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "code handle is required")
         return nil
@@ -601,7 +756,7 @@ public func securityCodeCopyHost(
         setError(errorOut, "SecCodeCopyHost failed: \(statusMessage(status))")
         return nil
     }
-    return retain(host)
+    return retainCode(host)
 }
 
 @_cdecl("security_code_copy_guest_with_attributes")
@@ -615,25 +770,30 @@ public func securityCodeCopyGuestWithAttributes(
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard attributesPointer == nil || codeAttributes(from: attributesPointer, keyMapper: codeGuestAttributeKey) != nil else {
+    let attributes = codeAttributes(from: attributesPointer, keyMapper: codeGuestAttributeKey)
+    guard attributesPointer == nil || attributes != nil else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "guest attribute JSON was invalid")
         return nil
     }
+    let host = codeFromPointer(hostPointer)
+    guard hostPointer == nil || host != nil else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "host code handle is invalid")
+        return nil
+    }
 
     var guest: SecCode?
-    let status = SecCodeCopyGuestWithAttributes(
-        unbox(hostPointer, as: SecCode.self),
-        codeAttributes(from: attributesPointer, keyMapper: codeGuestAttributeKey),
-        SecCSFlags(rawValue: flags),
-        &guest
-    )
+    let status = SecCodeCopyGuestWithAttributes(host, attributes, SecCSFlags(rawValue: flags), &guest)
     guard status == errSecSuccess, let guest else {
         setStatus(statusOut, status)
         setError(errorOut, "SecCodeCopyGuestWithAttributes failed: \(statusMessage(status))")
         return nil
     }
-    return retain(guest)
+    let token = (attributes as NSDictionary?)?[kSecGuestAttributeAudit]
+        .flatMap { $0 as? Data }
+        .flatMap { auditToken(fromData: $0) }
+    return retainCode(guest, auditToken: token)
 }
 
 @_cdecl("security_static_code_validate_file_resource")

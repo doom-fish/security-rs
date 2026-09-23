@@ -74,6 +74,7 @@ pub enum SecurityError {
     CoreFoundation(NullPointerError),
     /// Security.framework returned an unexpected `OSStatus`.
     Status(StatusError),
+    Unsupported(String),
 }
 
 impl SecurityError {
@@ -123,6 +124,7 @@ impl fmt::Display for SecurityError {
             Self::Serialization(message) => write!(f, "serialization error: {message}"),
             Self::CoreFoundation(error) => write!(f, "{error}"),
             Self::Status(error) => write!(f, "{error}"),
+            Self::Unsupported(message) => write!(f, "unsupported: {message}"),
         }
     }
 }

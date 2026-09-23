@@ -67,7 +67,8 @@ pub use cms::{
     Cms, CmsCertificateChainMode, CmsDecoder, CmsDigestAlgorithm, CmsEncoder, CmsSignedAttributes,
 };
 pub use code::{
-    Code, CodeSigningFlags, Requirement, SigningInformation, SigningValue, StaticCode, Task,
+    AuditToken, Code, CodeSigningFlags, CodeStatus, Requirement, SigningInformation,
+    SigningValue, StaticCode, Task,
 };
 pub use error::{OsStatus, Result, SecurityError, StatusError};
 pub use identity::Identity;
@@ -94,7 +95,8 @@ pub mod prelude {
         CmsSignedAttributes,
     };
     pub use crate::code::{
-        Code, CodeSigningFlags, Requirement, SigningInformation, SigningValue, StaticCode, Task,
+        AuditToken, Code, CodeSigningFlags, CodeStatus, Requirement, SigningInformation,
+        SigningValue, StaticCode, Task,
     };
     pub use crate::error::{OsStatus, Result, SecurityError, StatusError};
     pub use crate::identity::Identity;
