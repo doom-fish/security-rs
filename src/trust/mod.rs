@@ -81,6 +81,10 @@ impl Trust {
         self.handle.as_ptr()
     }
 
+    pub(crate) fn from_handle(handle: bridge::Handle) -> Self {
+        Self { handle }
+    }
+
     /// Wraps the corresponding `SecTrustRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_trust_get_type_id() }
@@ -380,31 +384,7 @@ impl Trust {
         };
         let array_handle =
             bridge::required_handle("security_trust_copy_certificate_chain", raw, status, error)?;
-        let count = usize::try_from(unsafe {
-            bridge::security_certificate_array_get_count(array_handle.as_ptr())
-        })
-        .unwrap_or_default();
-        let mut certificates = Vec::with_capacity(count);
-        for index in 0..count {
-            let mut status = 0;
-            let mut error = std::ptr::null_mut();
-            let raw = unsafe {
-                bridge::security_certificate_array_copy_item(
-                    array_handle.as_ptr(),
-                    bridge::len_to_isize(index)?,
-                    &raw mut status,
-                    &raw mut error,
-                )
-            };
-            let handle = bridge::required_handle(
-                "security_certificate_array_copy_item",
-                raw,
-                status,
-                error,
-            )?;
-            certificates.push(Certificate::from_handle(handle));
-        }
-        Ok(certificates)
+        Certificate::from_array_handle(&array_handle)
     }
 
     /// Wraps the corresponding `SecTrustRef` operation.
@@ -515,15 +495,13 @@ fn decode_trust_date(value: Value) -> Result<SystemTime> {
                 operation: "security_trust_get_verify_time",
                 expected: "date JSON object",
             })?;
-    let duration = Duration::from_secs_f64(unix.abs());
+    let out_of_range =
+        || SecurityError::InvalidArgument("trust verify time is out of range".to_owned());
+    let duration = Duration::try_from_secs_f64(unix.abs()).map_err(|_| out_of_range())?;
     if unix >= 0.0 {
-        Ok(UNIX_EPOCH + duration)
+        UNIX_EPOCH.checked_add(duration).ok_or_else(out_of_range)
     } else {
-        UNIX_EPOCH.checked_sub(duration).ok_or_else(|| {
-            SecurityError::InvalidArgument(
-                "trust verify time preceded UNIX_EPOCH by too much".to_owned(),
-            )
-        })
+        UNIX_EPOCH.checked_sub(duration).ok_or_else(out_of_range)
     }
 }
 

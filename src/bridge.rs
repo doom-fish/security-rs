@@ -734,6 +734,12 @@ unsafe extern "C" {
         signer_index: isize,
         policy_pointer: *mut c_void,
         evaluate_sec_trust: bool,
+        trust_out: *mut *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_cms_decoder_copy_all_certificates(
+        pointer: *mut c_void,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;

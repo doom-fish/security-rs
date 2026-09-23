@@ -5,9 +5,10 @@ use serde_json::Value;
 
 use crate::bridge;
 use crate::certificate::Certificate;
-use crate::error::{Result, SecurityError};
+use crate::error::{OsStatus, Result, SecurityError};
 use crate::identity::Identity;
 use crate::policy::Policy;
+use crate::trust::Trust;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -78,6 +79,84 @@ impl CmsDigestAlgorithm {
             Self::Sha1 => "sha1",
             Self::Sha256 => "sha256",
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CmsSignerStatus {
+    Unsigned,
+    Valid,
+    NeedsDetachedContent,
+    InvalidSignature,
+    InvalidCertificate,
+    InvalidIndex,
+    Unknown(u32),
+}
+
+impl CmsSignerStatus {
+    const fn from_raw(raw: u32) -> Self {
+        match raw {
+            0 => Self::Unsigned,
+            1 => Self::Valid,
+            2 => Self::NeedsDetachedContent,
+            3 => Self::InvalidSignature,
+            4 => Self::InvalidCertificate,
+            5 => Self::InvalidIndex,
+            other => Self::Unknown(other),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CmsCertificateVerification {
+    NotEvaluated,
+    Evaluated(OsStatus),
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct CmsSignerStatusReport {
+    pub signer_status: CmsSignerStatus,
+    pub certificate_verification: CmsCertificateVerification,
+    pub trust: Option<Trust>,
+}
+
+impl CmsSignerStatusReport {
+    pub fn is_verified(&self) -> bool {
+        self.signer_status == CmsSignerStatus::Valid
+            && self.certificate_verification == CmsCertificateVerification::Evaluated(0)
+    }
+
+    fn from_json(value: &Value, trust: Option<Trust>) -> Result<Self> {
+        let unexpected = || SecurityError::UnexpectedType {
+            operation: "security_cms_decoder_copy_signer_status",
+            expected: "signer status JSON object",
+        };
+        let signer_status = value
+            .get("signerStatus")
+            .and_then(Value::as_u64)
+            .and_then(|raw| u32::try_from(raw).ok())
+            .map(CmsSignerStatus::from_raw)
+            .ok_or_else(unexpected)?;
+        let evaluated = value
+            .get("trustEvaluated")
+            .and_then(Value::as_bool)
+            .ok_or_else(unexpected)?;
+        let certificate_verification = if evaluated {
+            value
+                .get("certVerifyResultCode")
+                .and_then(Value::as_i64)
+                .and_then(|raw| OsStatus::try_from(raw).ok())
+                .map(CmsCertificateVerification::Evaluated)
+                .ok_or_else(unexpected)?
+        } else {
+            CmsCertificateVerification::NotEvaluated
+        };
+        Ok(Self {
+            signer_status,
+            certificate_verification,
+            trust,
+        })
     }
 }
 
@@ -184,25 +263,29 @@ impl CmsDecoder {
         signer_index: usize,
         policy: Option<&Policy>,
         evaluate_sec_trust: bool,
-    ) -> Result<Value> {
+    ) -> Result<CmsSignerStatusReport> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
+        let mut trust = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_cms_decoder_copy_signer_status(
                 self.handle.as_ptr(),
                 bridge::len_to_isize(signer_index)?,
                 policy.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
                 evaluate_sec_trust,
+                &raw mut trust,
                 &raw mut status,
                 &raw mut error,
             )
         };
-        bridge::required_json(
+        let trust = bridge::Handle::from_raw(trust).map(Trust::from_handle);
+        let value: Value = bridge::required_json(
             "security_cms_decoder_copy_signer_status",
             raw,
             status,
             error,
-        )
+        )?;
+        CmsSignerStatusReport::from_json(&value, trust)
     }
 
     /// Wraps the corresponding Security.framework CMS decoder operation.
@@ -387,18 +470,19 @@ impl CmsDecoder {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_cms_decode_all_certificates(
-                std::ptr::null(),
-                0,
+            bridge::security_cms_decoder_copy_all_certificates(
+                self.handle.as_ptr(),
                 &raw mut status,
                 &raw mut error,
             )
         };
-        let _ = raw;
-        Err(SecurityError::InvalidArgument(
-            "CmsDecoder::all_certificates is not available; use Cms::decode_all_certificates"
-                .to_owned(),
-        ))
+        let array_handle = bridge::required_handle(
+            "security_cms_decoder_copy_all_certificates",
+            raw,
+            status,
+            error,
+        )?;
+        Certificate::from_array_handle(&array_handle)
     }
 }
 
@@ -779,31 +863,7 @@ impl Cms {
         };
         let array_handle =
             bridge::required_handle("security_cms_decode_all_certificates", raw, status, error)?;
-        let count = usize::try_from(unsafe {
-            bridge::security_certificate_array_get_count(array_handle.as_ptr())
-        })
-        .unwrap_or_default();
-        let mut certificates = Vec::with_capacity(count);
-        for index in 0..count {
-            let mut status = 0;
-            let mut error = std::ptr::null_mut();
-            let raw = unsafe {
-                bridge::security_certificate_array_copy_item(
-                    array_handle.as_ptr(),
-                    bridge::len_to_isize(index)?,
-                    &raw mut status,
-                    &raw mut error,
-                )
-            };
-            let handle = bridge::required_handle(
-                "security_certificate_array_copy_item",
-                raw,
-                status,
-                error,
-            )?;
-            certificates.push(Certificate::from_handle(handle));
-        }
-        Ok(certificates)
+        Certificate::from_array_handle(&array_handle)
     }
 
     /// Wraps the corresponding Security.framework CMS helper.
@@ -870,12 +930,11 @@ fn decode_cms_date(value: Value, operation: &'static str) -> Result<SystemTime> 
                 operation,
                 expected: "date JSON object",
             })?;
-    let duration = Duration::from_secs_f64(unix.abs());
+    let out_of_range = || SecurityError::InvalidArgument("CMS date is out of range".to_owned());
+    let duration = Duration::try_from_secs_f64(unix.abs()).map_err(|_| out_of_range())?;
     if unix >= 0.0 {
-        Ok(UNIX_EPOCH + duration)
+        UNIX_EPOCH.checked_add(duration).ok_or_else(out_of_range)
     } else {
-        UNIX_EPOCH.checked_sub(duration).ok_or_else(|| {
-            SecurityError::InvalidArgument("CMS date preceded UNIX_EPOCH by too much".to_owned())
-        })
+        UNIX_EPOCH.checked_sub(duration).ok_or_else(out_of_range)
     }
 }

@@ -64,7 +64,8 @@ pub mod trust;
 pub use authorization::{Authorization, AuthorizationOptions};
 pub use certificate::{Certificate, PublicKey};
 pub use cms::{
-    Cms, CmsCertificateChainMode, CmsDecoder, CmsDigestAlgorithm, CmsEncoder, CmsSignedAttributes,
+    Cms, CmsCertificateChainMode, CmsCertificateVerification, CmsDecoder, CmsDigestAlgorithm,
+    CmsEncoder, CmsSignedAttributes, CmsSignerStatus, CmsSignerStatusReport,
 };
 pub use code::{
     AuditToken, Code, CodeSigningFlags, CodeStatus, Requirement, SigningInformation,
@@ -91,8 +92,8 @@ pub mod prelude {
     pub use crate::authorization::{Authorization, AuthorizationOptions};
     pub use crate::certificate::{Certificate, PublicKey};
     pub use crate::cms::{
-        Cms, CmsCertificateChainMode, CmsDecoder, CmsDigestAlgorithm, CmsEncoder,
-        CmsSignedAttributes,
+        Cms, CmsCertificateChainMode, CmsCertificateVerification, CmsDecoder, CmsDigestAlgorithm,
+        CmsEncoder, CmsSignedAttributes, CmsSignerStatus, CmsSignerStatusReport,
     };
     pub use crate::code::{
         AuditToken, Code, CodeSigningFlags, CodeStatus, Requirement, SigningInformation,

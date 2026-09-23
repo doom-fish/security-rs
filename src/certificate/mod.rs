@@ -99,6 +99,34 @@ impl Certificate {
         &self.handle
     }
 
+    pub(crate) fn from_array_handle(array_handle: &Handle) -> Result<Vec<Self>> {
+        let count = usize::try_from(unsafe {
+            bridge::security_certificate_array_get_count(array_handle.as_ptr())
+        })
+        .unwrap_or_default();
+        let mut certificates = Vec::with_capacity(count);
+        for index in 0..count {
+            let mut status = 0;
+            let mut error = std::ptr::null_mut();
+            let raw = unsafe {
+                bridge::security_certificate_array_copy_item(
+                    array_handle.as_ptr(),
+                    bridge::len_to_isize(index)?,
+                    &raw mut status,
+                    &raw mut error,
+                )
+            };
+            let handle = bridge::required_handle(
+                "security_certificate_array_copy_item",
+                raw,
+                status,
+                error,
+            )?;
+            certificates.push(Self::from_handle(handle));
+        }
+        Ok(certificates)
+    }
+
     /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn type_id() -> usize {
         unsafe { bridge::security_certificate_get_type_id() }
@@ -479,14 +507,12 @@ fn decode_date(value: Value) -> Result<SystemTime> {
                 operation: "security_certificate_copy_not_valid_date",
                 expected: "date JSON object",
             })?;
-    let duration = Duration::from_secs_f64(unix.abs());
+    let out_of_range =
+        || SecurityError::InvalidArgument("certificate date is out of range".to_owned());
+    let duration = Duration::try_from_secs_f64(unix.abs()).map_err(|_| out_of_range())?;
     if unix >= 0.0 {
-        Ok(UNIX_EPOCH + duration)
+        UNIX_EPOCH.checked_add(duration).ok_or_else(out_of_range)
     } else {
-        UNIX_EPOCH.checked_sub(duration).ok_or_else(|| {
-            SecurityError::InvalidArgument(
-                "certificate date preceded UNIX_EPOCH by too much".to_owned(),
-            )
-        })
+        UNIX_EPOCH.checked_sub(duration).ok_or_else(out_of_range)
     }
 }

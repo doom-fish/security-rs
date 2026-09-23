@@ -5,11 +5,11 @@ private func cmsDateHandle(_ absoluteTime: CFAbsoluteTime) -> UnsafeMutableRawPo
     jsonHandle(Date(timeIntervalSinceReferenceDate: absoluteTime))
 }
 
-private func cmsPolicy(_ policyPointer: UnsafeMutableRawPointer?) -> CFTypeRef {
-    if let policy = unbox(policyPointer, as: SecPolicy.self) {
-        return policy
+private func cmsPolicy(_ policyPointer: UnsafeMutableRawPointer?) -> CFTypeRef? {
+    guard let policyPointer else {
+        return SecPolicyCreateBasicX509()
     }
-    return SecPolicyCreateBasicX509()
+    return unbox(policyPointer, as: SecPolicy.self)
 }
 
 private func cmsSigners(
@@ -275,25 +275,32 @@ public func securityCmsDecoderCopySignerStatus(
     _ signerIndex: Int,
     _ policyPointer: UnsafeMutableRawPointer?,
     _ evaluateSecTrust: Bool,
+    _ trustOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
+    trustOut?.pointee = nil
 
     guard let decoder = unbox(pointer, as: CMSDecoder.self) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "decoder handle is required")
         return nil
     }
+    guard let policy = cmsPolicy(policyPointer) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "policy handle is invalid")
+        return nil
+    }
 
-    var signerStatus = CMSSignerStatus(rawValue: 0)!
+    var signerStatus = CMSSignerStatus.unsigned
     var secTrust: SecTrust?
     var verifyResult = errSecSuccess
     let status = CMSDecoderCopySignerStatus(
         decoder,
         signerIndex,
-        cmsPolicy(policyPointer),
+        policy,
         evaluateSecTrust,
         &signerStatus,
         &secTrust,
@@ -306,13 +313,44 @@ public func securityCmsDecoderCopySignerStatus(
     }
 
     var result: [String: Any] = [
-        "certVerifyResultCode": verifyResult,
         "signerStatus": signerStatus.rawValue,
+        "trustEvaluated": evaluateSecTrust,
     ]
-    if let secTrust, let trustResult = SecTrustCopyResult(secTrust) {
-        result["trustResult"] = trustResult
+    if evaluateSecTrust {
+        result["certVerifyResultCode"] = verifyResult
     }
-    return jsonHandle(result)
+    guard let json = jsonHandle(result) else {
+        setStatus(statusOut, errSecInternalComponent)
+        setError(errorOut, "CMS signer status could not be encoded")
+        return nil
+    }
+    trustOut?.pointee = retain(secTrust)
+    return json
+}
+
+@_cdecl("security_cms_decoder_copy_all_certificates")
+public func securityCmsDecoderCopyAllCertificates(
+    _ pointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let decoder = unbox(pointer, as: CMSDecoder.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "decoder handle is required")
+        return nil
+    }
+
+    var certificates: CFArray?
+    let status = CMSDecoderCopyAllCerts(decoder, &certificates)
+    guard status == errSecSuccess else {
+        setStatus(statusOut, status)
+        setError(errorOut, "CMSDecoderCopyAllCerts failed: \(statusMessage(status))")
+        return nil
+    }
+    return retain((certificates as? [SecCertificate] ?? []).filter { CFGetTypeID($0) == SecCertificateGetTypeID() })
 }
 
 @_cdecl("security_cms_decoder_copy_signer_email_address")
@@ -511,8 +549,14 @@ public func securityCmsDecoderCopySignerTimestampWithPolicy(
         return nil
     }
 
+    guard let policy = cmsPolicy(policyPointer) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "policy handle is invalid")
+        return nil
+    }
+
     var timestamp: CFAbsoluteTime = 0
-    let status = CMSDecoderCopySignerTimestampWithPolicy(decoder, cmsPolicy(policyPointer), signerIndex, &timestamp)
+    let status = CMSDecoderCopySignerTimestampWithPolicy(decoder, policy, signerIndex, &timestamp)
     guard status == errSecSuccess else {
         setStatus(statusOut, status)
         setError(errorOut, "CMSDecoderCopySignerTimestampWithPolicy failed: \(statusMessage(status))")
@@ -1083,7 +1127,12 @@ public func securityCmsEncoderCopySignerTimestampWithPolicy(
     }
 
     var timestamp: CFAbsoluteTime = 0
-    let status = CMSEncoderCopySignerTimestampWithPolicy(encoder, cmsPolicy(policyPointer), signerIndex, &timestamp)
+    guard let policy = cmsPolicy(policyPointer) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "policy handle is invalid")
+        return nil
+    }
+    let status = CMSEncoderCopySignerTimestampWithPolicy(encoder, policy, signerIndex, &timestamp)
     guard status == errSecSuccess else {
         setStatus(statusOut, status)
         setError(errorOut, "CMSEncoderCopySignerTimestampWithPolicy failed: \(statusMessage(status))")
