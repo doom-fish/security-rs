@@ -131,7 +131,12 @@ public func securityPolicyCreateRevocation(
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
-    return retain(SecPolicyCreateRevocation(CFOptionFlags(flags)))
+    guard let policy = SecPolicyCreateRevocation(CFOptionFlags(flags)) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "SecPolicyCreateRevocation rejected revocation flags \(flags)")
+        return nil
+    }
+    return retain(policy)
 }
 
 @_cdecl("security_policy_create_with_properties")

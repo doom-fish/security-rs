@@ -66,9 +66,9 @@ public func securityCertificateImportItem(
         return nil
     }
 
-    guard let importedItems = items as? [SecCertificate],
-          let certificate = importedItems.first
-    else {
+    guard let certificate = (items as? [SecCertificate])?.first(where: {
+        CFGetTypeID($0) == SecCertificateGetTypeID()
+    }) else {
         setStatus(statusOut, errSecItemNotFound)
         setError(errorOut, "SecItemImport returned no SecCertificate result")
         return nil

@@ -29,3 +29,14 @@ fn imports_and_exports_certificate_items() -> security::Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn certificate_import_rejects_items_that_are_not_certificates() {
+    assert!(Certificate::import_item(
+        &common::fixture("test-key.pem"),
+        Some(".pem"),
+        ExternalFormat::Unknown,
+        ExternalItemType::Unknown,
+    )
+    .is_err());
+}

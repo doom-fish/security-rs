@@ -10,3 +10,16 @@ fn encodes_and_decodes_certificate_bag() -> security::Result<()> {
     assert_eq!(decoded.len(), 1);
     Ok(())
 }
+
+#[test]
+fn empty_cms_input_is_rejected_without_aborting() -> security::Result<()> {
+    assert!(Cms::decode_all_certificates(&[]).is_err());
+    let mut decoder = Cms::decoder()?;
+    decoder.update_message(&[])?;
+    let mut encoder = Cms::encoder()?;
+    assert!(matches!(
+        encoder.update_content(&[]),
+        Ok(()) | Err(security::SecurityError::Status(_))
+    ));
+    Ok(())
+}

@@ -57,14 +57,15 @@ public func securityIdentityImportPkcs12First(
 
     guard let importedItems = items as? [[String: Any]],
           let firstItem = importedItems.first,
-          let identityValue = firstItem[kSecImportItemIdentity as String]
+          let identityValue = firstItem[kSecImportItemIdentity as String].map({ $0 as AnyObject }),
+          CFGetTypeID(identityValue) == SecIdentityGetTypeID()
     else {
         setStatus(statusOut, errSecItemNotFound)
         setError(errorOut, "no SecIdentity found in PKCS#12 container")
         return nil
     }
 
-    let identity = identityValue as! SecIdentity
+    let identity = unsafeDowncast(identityValue, to: SecIdentity.self)
     let label = firstItem[kSecImportItemLabel as String] as? String
     let chainCount = (firstItem[kSecImportItemCertChain as String] as? [Any])?.count ?? 0
     return retainIdentityRecord(identity, label: label, chainCount: chainCount)

@@ -79,7 +79,7 @@ public func securityCmsDecodeAllCertificates(
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let message = dataFromPointer(dataPointer, length: dataLength) else {
+    guard let message = dataFromPointer(dataPointer, length: dataLength), !message.isEmpty else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "CMS data are required")
         return nil
@@ -93,8 +93,11 @@ public func securityCmsDecodeAllCertificates(
         return nil
     }
 
-    status = message.withUnsafeBytes { bytes in
-        CMSDecoderUpdateMessage(decoder, bytes.baseAddress!, bytes.count)
+    status = message.withUnsafeBytes { bytes -> OSStatus in
+        guard let baseAddress = bytes.baseAddress else {
+            return errSecParam
+        }
+        return CMSDecoderUpdateMessage(decoder, baseAddress, bytes.count)
     }
     guard status == errSecSuccess else {
         setStatus(statusOut, status)
@@ -160,8 +163,11 @@ public func securityCmsDecoderUpdateMessage(
         return errSecParam
     }
 
-    let status = data.withUnsafeBytes { bytes in
-        CMSDecoderUpdateMessage(decoder, bytes.baseAddress!, bytes.count)
+    let status = data.withUnsafeBytes { bytes -> OSStatus in
+        guard let baseAddress = bytes.baseAddress else {
+            return errSecSuccess
+        }
+        return CMSDecoderUpdateMessage(decoder, baseAddress, bytes.count)
     }
     if status != errSecSuccess {
         setError(errorOut, "CMSDecoderUpdateMessage failed: \(statusMessage(status))")
@@ -931,8 +937,11 @@ public func securityCmsEncoderUpdateContent(
         return errSecParam
     }
 
-    let status = data.withUnsafeBytes { bytes in
-        CMSEncoderUpdateContent(encoder, bytes.baseAddress!, bytes.count)
+    let status = data.withUnsafeBytes { bytes -> OSStatus in
+        guard let baseAddress = bytes.baseAddress else {
+            return errSecSuccess
+        }
+        return CMSEncoderUpdateContent(encoder, baseAddress, bytes.count)
     }
     if status != errSecSuccess {
         setError(errorOut, "CMSEncoderUpdateContent failed: \(statusMessage(status))")

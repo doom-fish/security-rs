@@ -7,8 +7,13 @@ fn creates_policy_variants() -> security::Result<()> {
     assert!(Policy::ssl(true, Some("localhost"))?
         .properties()?
         .is_object());
-    assert!(Policy::revocation(0)?.properties()?.is_object());
+    assert!(Policy::revocation(3)?.properties()?.is_object());
     Ok(())
+}
+
+#[test]
+fn revocation_policy_rejects_flags_the_framework_refuses() {
+    assert!(Policy::revocation(0).is_err());
 }
 
 #[test]

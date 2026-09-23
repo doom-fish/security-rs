@@ -142,11 +142,16 @@ public func securityPrivateKeyImportItem(
         return nil
     }
 
-    guard let importedItems = items as? [SecKey],
-          let privateKey = importedItems.first
-    else {
+    guard let privateKey = (items as? [SecKey])?.first(where: { item in
+        guard CFGetTypeID(item) == SecKeyGetTypeID(),
+              let attributes = SecKeyCopyAttributes(item) as NSDictionary?
+        else {
+            return false
+        }
+        return (attributes[kSecAttrKeyClass] as? String) == (kSecAttrKeyClassPrivate as String)
+    }) else {
         setStatus(statusOut, errSecItemNotFound)
-        setError(errorOut, "SecItemImport returned no SecKey result")
+        setError(errorOut, "SecItemImport returned no private SecKey result")
         return nil
     }
 

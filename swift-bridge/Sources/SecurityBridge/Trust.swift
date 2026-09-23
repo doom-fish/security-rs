@@ -432,7 +432,10 @@ public func securityTrustCopyKey(
         return nil
     }
 
-    return retain(SecTrustCopyKey(trust))
+    guard let key = SecTrustCopyKey(trust) else {
+        return nil
+    }
+    return retain(key)
 }
 
 @_cdecl("security_trust_get_certificate_count")

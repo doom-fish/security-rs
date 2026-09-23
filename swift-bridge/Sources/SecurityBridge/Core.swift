@@ -28,6 +28,14 @@ func retain<T>(_ value: T) -> UnsafeMutableRawPointer {
     Unmanaged.passRetained(Box(value)).toOpaque()
 }
 
+func retain<T>(_ value: T?) -> UnsafeMutableRawPointer? {
+    guard let value else {
+        return nil
+    }
+
+    return Unmanaged.passRetained(Box(value)).toOpaque()
+}
+
 func retainAuthorization(_ value: AuthorizationRef) -> UnsafeMutableRawPointer {
     Unmanaged.passRetained(AuthorizationBox(value)).toOpaque()
 }
@@ -37,15 +45,19 @@ func unbox<T>(_ pointer: UnsafeMutableRawPointer?, as _: T.Type) -> T? {
         return nil
     }
 
-    return Unmanaged<Box<T>>.fromOpaque(pointer).takeUnretainedValue().value
+    return (Unmanaged<AnyObject>.fromOpaque(pointer).takeUnretainedValue() as? Box<T>)?.value
 }
 
-func unboxAuthorization(_ pointer: UnsafeMutableRawPointer?) -> AuthorizationRef? {
+func authorizationBox(_ pointer: UnsafeMutableRawPointer?) -> AuthorizationBox? {
     guard let pointer else {
         return nil
     }
 
-    return Unmanaged<AuthorizationBox>.fromOpaque(pointer).takeUnretainedValue().value
+    return Unmanaged<AnyObject>.fromOpaque(pointer).takeUnretainedValue() as? AuthorizationBox
+}
+
+func unboxAuthorization(_ pointer: UnsafeMutableRawPointer?) -> AuthorizationRef? {
+    authorizationBox(pointer)?.value
 }
 
 func setStatus(_ statusOut: UnsafeMutablePointer<Int32>?, _ status: OSStatus) {

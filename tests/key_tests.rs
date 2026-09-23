@@ -54,3 +54,14 @@ fn signs_verifies_encrypts_and_exports_private_keys() -> security::Result<()> {
     )?);
     Ok(())
 }
+
+#[test]
+fn private_key_import_rejects_items_that_are_not_private_keys() {
+    assert!(PrivateKey::import_item(
+        &common::fixture("test-cert.pem"),
+        Some(".pem"),
+        security::ExternalFormat::Unknown,
+        security::ExternalItemType::Unknown,
+    )
+    .is_err());
+}
