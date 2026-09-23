@@ -40,12 +40,18 @@ public func securityIdentityImportPkcs12First(
         return nil
     }
 
-    var options: [CFString: Any] = [
-        kSecImportExportPassphrase: password,
-    ]
-    if #available(macOS 15.0, *) {
-        options[kSecImportToMemoryOnly] = true
+    guard #available(macOS 15.0, *) else {
+        setStatus(statusOut, errSecUnimplemented)
+        setError(
+            errorOut,
+            "PKCS#12 import needs kSecImportToMemoryOnly (macOS 15); before that, SecPKCS12Import stores the private key in the default keychain"
+        )
+        return nil
     }
+    let options: [CFString: Any] = [
+        kSecImportExportPassphrase: password,
+        kSecImportToMemoryOnly: true,
+    ]
 
     var items: CFArray?
     let status = SecPKCS12Import(pkcs12Data as CFData, options as CFDictionary, &items)

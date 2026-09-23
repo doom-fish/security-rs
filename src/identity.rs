@@ -1,8 +1,9 @@
 use serde_json::Value;
+use zeroize::Zeroizing;
 
 use crate::bridge;
 use crate::certificate::Certificate;
-use crate::error::Result;
+use crate::error::{status, Result, SecurityError, StatusError};
 use crate::key::PrivateKey;
 
 #[derive(Debug)]
@@ -27,20 +28,28 @@ impl Identity {
 
     /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn import_pkcs12_first(data: &[u8], password: &str) -> Result<Self> {
-        let password = bridge::cstring(password)?;
+        let password = Zeroizing::new(bridge::cstring(password)?.into_bytes_with_nul());
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_identity_import_pkcs12_first(
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
-                password.as_ptr(),
+                password.as_ptr().cast(),
                 &raw mut status,
                 &raw mut error,
             )
         };
         bridge::required_handle("security_identity_import_pkcs12_first", raw, status, error)
             .map(Self::from_handle)
+            .map_err(|error| match error {
+                SecurityError::Status(StatusError {
+                    status: status::UNIMPLEMENTED,
+                    message,
+                    ..
+                }) => SecurityError::Unsupported(message),
+                other => other,
+            })
     }
 
     /// Wraps the corresponding `SecIdentityRef` operation.
