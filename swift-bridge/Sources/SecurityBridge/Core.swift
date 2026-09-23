@@ -12,7 +12,7 @@ final class Box<T> {
 
 final class AuthorizationBox {
     let value: AuthorizationRef
-    let freeFlags: AuthorizationFlags
+    var freeFlags: AuthorizationFlags
 
     init(_ value: AuthorizationRef, freeFlags: AuthorizationFlags = AuthorizationFlags()) {
         self.value = value

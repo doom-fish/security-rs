@@ -452,6 +452,10 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_authorization_set_destroy_rights(
+        pointer: *mut c_void,
+        destroy_rights: bool,
+    ) -> bool;
     pub(crate) fn security_authorization_make_external_form(
         pointer: *mut c_void,
         status_out: *mut OsStatus,

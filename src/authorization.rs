@@ -2,7 +2,7 @@ use bitflags::bitflags;
 use serde_json::Value;
 
 use crate::bridge;
-use crate::error::Result;
+use crate::error::{Result, SecurityError};
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -53,6 +53,12 @@ impl Authorization {
         };
         bridge::required_handle("security_authorization_create", raw, status, error)
             .map(|handle| Self { handle })
+    }
+
+    pub fn set_destroy_rights_on_drop(&mut self, destroy_rights: bool) {
+        unsafe {
+            bridge::security_authorization_set_destroy_rights(self.handle.as_ptr(), destroy_rights);
+        }
     }
 
     /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
@@ -114,7 +120,7 @@ impl Authorization {
 
     /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn copy_rights(&self, rights: &[&str], options: AuthorizationOptions) -> Result<Value> {
-        let rights_json = bridge::json_cstring(&rights)?;
+        let rights_json = rights_json(rights)?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
@@ -135,7 +141,7 @@ impl Authorization {
         rights: &[&str],
         options: AuthorizationOptions,
     ) -> Result<Value> {
-        let rights_json = bridge::json_cstring(&rights)?;
+        let rights_json = rights_json(rights)?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
@@ -156,9 +162,34 @@ impl Authorization {
     }
 }
 
+pub(crate) fn rights_json(rights: &[&str]) -> Result<std::ffi::CString> {
+    if rights.is_empty() {
+        return Err(SecurityError::InvalidArgument(
+            "at least one authorization right is required".to_owned(),
+        ));
+    }
+    if rights.iter().any(|right| right.is_empty() || right.contains('\0')) {
+        return Err(SecurityError::InvalidArgument(
+            "authorization right names must be non-empty and free of NUL bytes".to_owned(),
+        ));
+    }
+    bridge::json_cstring(&rights)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rights_json_rejects_empty_and_nul_names() {
+        assert!(rights_json(&[]).is_err());
+        assert!(rights_json(&[""]).is_err());
+        assert!(rights_json(&["system.privilege.admin\0other"]).is_err());
+        assert_eq!(
+            rights_json(&["system.preferences"]).unwrap().to_str().unwrap(),
+            r#"["system.preferences"]"#
+        );
+    }
 
     #[test]
     fn defaults_are_empty() {

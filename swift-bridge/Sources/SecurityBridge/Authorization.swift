@@ -68,6 +68,18 @@ public func securityAuthorizationCreate(
     return retainAuthorization(authorization)
 }
 
+@_cdecl("security_authorization_set_destroy_rights")
+public func securityAuthorizationSetDestroyRights(
+    _ authorizationPointer: UnsafeMutableRawPointer?,
+    _ destroyRights: Bool
+) -> Bool {
+    guard let box = authorizationBox(authorizationPointer) else {
+        return false
+    }
+    box.freeFlags = destroyRights ? [.destroyRights] : []
+    return true
+}
+
 @_cdecl("security_authorization_make_external_form")
 public func securityAuthorizationMakeExternalForm(
     _ authorizationPointer: UnsafeMutableRawPointer?,
@@ -256,7 +268,7 @@ public func securityAuthorizationCopyRightsAsyncStart(
 ) -> Int32 {
     clearError(errorOut)
 
-    guard let authorization = unboxAuthorization(authorizationPointer),
+    guard let box = authorizationBox(authorizationPointer),
           let rightNames = jsonStringArray(fromCString: rightsPointer),
           !rightNames.isEmpty
     else {
@@ -270,12 +282,15 @@ public func securityAuthorizationCopyRightsAsyncStart(
 
     withAuthorizationRights(rightNames) { rights in
         AuthorizationCopyRightsAsync(
-            authorization,
+            box.value,
             rights,
             nil,
             AuthorizationFlags(rawValue: flags)
         ) { status, callbackAuthorizedRights in
-            defer { releaseAuthorizationItemSet(UnsafeMutablePointer(callbackAuthorizedRights)) }
+            defer {
+                releaseAuthorizationItemSet(UnsafeMutablePointer(callbackAuthorizedRights))
+                withExtendedLifetime(box) {}
+            }
 
             if status == errAuthorizationSuccess,
                let callbackAuthorizedRights,

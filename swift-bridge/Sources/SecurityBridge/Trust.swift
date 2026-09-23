@@ -358,9 +358,12 @@ public func securityTrustEvaluateAsyncStart(
     }
 
     let queue = DispatchQueue(label: "security-rs.trust.evaluate.async")
-    let status = SecTrustEvaluateAsyncWithError(trust, queue) { _, trusted, error in
-        let errorHandle = error.map(trustErrorMessage).flatMap(stringHandle)
-        callback(refcon, trusted, errorHandle)
+    var status = errSecSuccess
+    queue.sync {
+        status = SecTrustEvaluateAsyncWithError(trust, queue) { _, trusted, error in
+            let errorHandle = error.map(trustErrorMessage).flatMap(stringHandle)
+            callback(refcon, trusted, errorHandle)
+        }
     }
     if status != errSecSuccess {
         setError(errorOut, "SecTrustEvaluateAsyncWithError failed: \(statusMessage(status))")

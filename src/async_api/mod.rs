@@ -20,7 +20,7 @@ use doom_fish_utils::completion::{AsyncCompletion, AsyncCompletionFuture};
 use doom_fish_utils::panic_safe::catch_user_panic;
 use serde_json::Value;
 
-use crate::authorization::{Authorization, AuthorizationOptions};
+use crate::authorization::{rights_json, Authorization, AuthorizationOptions};
 use crate::bridge;
 use crate::error::{status, Result, SecurityError};
 use crate::trust::Trust;
@@ -198,7 +198,7 @@ impl<'a> AsyncAuthorization<'a> {
         rights: &[&str],
         options: AuthorizationOptions,
     ) -> Result<AuthorizationRightsFuture<'a>> {
-        let rights_json = bridge::json_cstring(&rights)?;
+        let rights_json = rights_json(rights)?;
         let (inner, refcon) = AsyncCompletion::<Result<Value>>::create();
         let mut error_raw = ptr::null_mut();
         let status = unsafe {
