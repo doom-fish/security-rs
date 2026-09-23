@@ -128,7 +128,8 @@ func jsonData(fromJSONObject object: Any?) -> Data? {
     case let values as [UInt8]:
         return Data(values)
     case let values as [NSNumber]:
-        return Data(values.map(\.uint8Value))
+        let bytes = values.compactMap { UInt8(exactly: $0) }
+        return bytes.count == values.count ? Data(bytes) : nil
     case let base64 as String:
         return Data(base64Encoded: base64)
     default:
@@ -231,33 +232,41 @@ func jsonValue(_ value: Any) -> Any {
             result[String(describing: key)] = jsonValue(item)
         }
         return result
-    case let value as SecRequirement:
+    default:
+        return securityObjectJSON(value as AnyObject) ?? String(describing: value)
+    }
+}
+
+private func securityObjectJSON(_ object: AnyObject) -> Any? {
+    switch CFGetTypeID(object) {
+    case SecRequirementGetTypeID():
         return [
             "_type": "requirement",
-            "value": requirementString(value),
+            "value": requirementString(unsafeDowncast(object, to: SecRequirement.self)),
         ]
-    case let value as SecCertificate:
-        let summary = SecCertificateCopySubjectSummary(value) as String? ?? "certificate"
+    case SecCertificateGetTypeID():
+        let certificate = unsafeDowncast(object, to: SecCertificate.self)
+        let summary = SecCertificateCopySubjectSummary(certificate) as String? ?? "certificate"
         return [
             "_type": "certificate",
             "subjectSummary": summary,
         ]
-    case let value as SecKey:
+    case SecKeyGetTypeID():
         return [
             "_type": "key",
-            "description": String(describing: value),
+            "description": String(describing: object),
         ]
-    case let value as SecPolicy:
-        if let properties = SecPolicyCopyProperties(value) {
+    case SecPolicyGetTypeID():
+        if let properties = SecPolicyCopyProperties(unsafeDowncast(object, to: SecPolicy.self)) {
             return jsonValue(properties)
         }
         return [
             "_type": "policy",
-            "description": String(describing: value),
+            "description": String(describing: object),
         ]
-    case let value as SecIdentity:
+    case SecIdentityGetTypeID():
         var certificate: SecCertificate?
-        if SecIdentityCopyCertificate(value, &certificate) == errSecSuccess,
+        if SecIdentityCopyCertificate(unsafeDowncast(object, to: SecIdentity.self), &certificate) == errSecSuccess,
            let certificate
         {
             let summary = SecCertificateCopySubjectSummary(certificate) as String? ?? "identity"
@@ -268,10 +277,10 @@ func jsonValue(_ value: Any) -> Any {
         }
         return [
             "_type": "identity",
-            "description": String(describing: value),
+            "description": String(describing: object),
         ]
     default:
-        return String(describing: value)
+        return nil
     }
 }
 

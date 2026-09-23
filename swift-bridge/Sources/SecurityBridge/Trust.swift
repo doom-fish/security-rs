@@ -461,7 +461,8 @@ public func securityTrustCopyCertificateChain(
         return nil
     }
 
-    let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate] ?? []
+    let chain = (SecTrustCopyCertificateChain(trust) as? [SecCertificate] ?? [])
+        .filter { CFGetTypeID($0) == SecCertificateGetTypeID() }
     return retain(chain)
 }
 

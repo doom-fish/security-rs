@@ -120,7 +120,7 @@ public func securityCmsDecodeAllCertificates(
         return nil
     }
 
-    let values = certificates as? [SecCertificate] ?? []
+    let values = (certificates as? [SecCertificate] ?? []).filter { CFGetTypeID($0) == SecCertificateGetTypeID() }
     return retain(values)
 }
 
