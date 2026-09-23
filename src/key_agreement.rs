@@ -24,7 +24,11 @@ impl AgreementPublicKey {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_key_copy_attributes(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_key_copy_attributes(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_key_copy_attributes", raw, status, error)
     }
@@ -47,7 +51,10 @@ impl AgreementPrivateKey {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_key_agreement_generate_p256_private_key(&mut status, &mut error)
+            bridge::security_key_agreement_generate_p256_private_key(
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_handle(
             "security_key_agreement_generate_p256_private_key",
@@ -63,7 +70,11 @@ impl AgreementPrivateKey {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_key_copy_public_key(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_key_copy_public_key(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_handle("security_key_copy_public_key", raw, status, error)
             .map(AgreementPublicKey::from_handle)
@@ -90,8 +101,8 @@ impl AgreementPrivateKey {
                 bridge::len_to_isize(requested_size)?,
                 shared_info.as_ptr().cast(),
                 bridge::len_to_isize(shared_info.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data(

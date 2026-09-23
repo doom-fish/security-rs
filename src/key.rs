@@ -127,7 +127,11 @@ pub(crate) fn key_external_representation(handle: &Handle) -> Result<Vec<u8>> {
     let mut status = 0;
     let mut error = std::ptr::null_mut();
     let raw = unsafe {
-        bridge::security_key_copy_external_representation(handle.as_ptr(), &mut status, &mut error)
+        bridge::security_key_copy_external_representation(
+            handle.as_ptr(),
+            &raw mut status,
+            &raw mut error,
+        )
     };
     bridge::required_data(
         "security_key_copy_external_representation",
@@ -150,8 +154,8 @@ pub(crate) fn encrypt_with_public_key(
             algorithm as u32,
             plaintext.as_ptr().cast(),
             bridge::len_to_isize(plaintext.len())?,
-            &mut status,
-            &mut error,
+            &raw mut status,
+            &raw mut error,
         )
     };
     bridge::required_data(
@@ -175,8 +179,8 @@ pub(crate) fn decrypt_with_private_key(
             algorithm as u32,
             ciphertext.as_ptr().cast(),
             bridge::len_to_isize(ciphertext.len())?,
-            &mut status,
-            &mut error,
+            &raw mut status,
+            &raw mut error,
         )
     };
     bridge::required_data(
@@ -217,8 +221,8 @@ impl PrivateKey {
                 bridge::len_to_isize(data.len())?,
                 key_type as u32,
                 bridge::len_to_isize(key_size_bits)?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_private_key_create_with_data", raw, status, error)
@@ -244,8 +248,8 @@ impl PrivateKey {
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
                 format as u32,
                 item_type as u32,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_private_key_import_item", raw, status, error)
@@ -267,7 +271,11 @@ impl PrivateKey {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_key_copy_public_key(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_key_copy_public_key(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_handle("security_key_copy_public_key", raw, status, error)
             .map(PublicKey::from_handle)
@@ -278,7 +286,11 @@ impl PrivateKey {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_key_copy_attributes(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_key_copy_attributes(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_key_copy_attributes", raw, status, error)
     }
@@ -303,8 +315,8 @@ impl PrivateKey {
                 algorithm as u32,
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data("security_private_key_create_signature", raw, status, error)

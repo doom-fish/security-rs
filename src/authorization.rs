@@ -49,7 +49,7 @@ impl Authorization {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_authorization_create(options.bits(), &mut status, &mut error)
+            bridge::security_authorization_create(options.bits(), &raw mut status, &raw mut error)
         };
         bridge::required_handle("security_authorization_create", raw, status, error)
             .map(|handle| Self { handle })
@@ -62,8 +62,8 @@ impl Authorization {
         let raw = unsafe {
             bridge::security_authorization_make_external_form(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data(
@@ -82,8 +82,8 @@ impl Authorization {
             bridge::security_authorization_create_from_external_form(
                 external_form.as_ptr().cast(),
                 bridge::len_to_isize(external_form.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle(
@@ -105,8 +105,8 @@ impl Authorization {
                 self.handle.as_ptr(),
                 tag.as_ref()
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json("security_authorization_copy_info", raw, status, error)
@@ -122,8 +122,8 @@ impl Authorization {
                 self.handle.as_ptr(),
                 rights_json.as_ptr(),
                 options.bits(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json("security_authorization_copy_rights", raw, status, error)
@@ -143,8 +143,8 @@ impl Authorization {
                 self.handle.as_ptr(),
                 rights_json.as_ptr(),
                 options.bits(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json(

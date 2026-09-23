@@ -151,7 +151,8 @@ impl Policy {
     pub fn basic_x509() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw = unsafe { bridge::security_policy_create_basic_x509(&mut status, &mut error) };
+        let raw =
+            unsafe { bridge::security_policy_create_basic_x509(&raw mut status, &raw mut error) };
         bridge::required_handle("security_policy_create_basic_x509", raw, status, error)
             .map(Self::from_handle)
     }
@@ -167,8 +168,8 @@ impl Policy {
                 hostname
                     .as_ref()
                     .map_or(std::ptr::null(), |value| value.as_c_str().as_ptr()),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_policy_create_ssl", raw, status, error)
@@ -179,8 +180,9 @@ impl Policy {
     pub fn revocation(flags: RevocationFlags) -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw =
-            unsafe { bridge::security_policy_create_revocation(flags, &mut status, &mut error) };
+        let raw = unsafe {
+            bridge::security_policy_create_revocation(flags, &raw mut status, &raw mut error)
+        };
         bridge::required_handle("security_policy_create_revocation", raw, status, error)
             .map(Self::from_handle)
     }
@@ -207,8 +209,8 @@ impl Policy {
                 properties
                     .as_ref()
                     .map_or(std::ptr::null(), |value| value.as_c_str().as_ptr()),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_policy_create_with_properties", raw, status, error)
@@ -220,7 +222,11 @@ impl Policy {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_policy_copy_properties(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_policy_copy_properties(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_policy_copy_properties", raw, status, error)
     }

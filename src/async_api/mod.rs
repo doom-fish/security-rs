@@ -159,7 +159,7 @@ impl<'a> AsyncTrust<'a> {
                 self.trust.as_ptr(),
                 refcon,
                 Some(trust_evaluate_async_cb),
-                &mut error_raw,
+                &raw mut error_raw,
             )
         };
         if status != status::SUCCESS {
@@ -208,7 +208,7 @@ impl<'a> AsyncAuthorization<'a> {
                 options.bits(),
                 refcon,
                 Some(authorization_copy_rights_async_cb),
-                &mut error_raw,
+                &raw mut error_raw,
             )
         };
         if status != status::SUCCESS {

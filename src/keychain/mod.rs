@@ -78,8 +78,8 @@ impl AccessControl {
             bridge::security_access_control_create(
                 protection.as_ptr(),
                 flags.bits(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_access_control_create", raw, status, error)
@@ -154,7 +154,7 @@ impl Keychain {
                 account.as_ptr(),
                 service.as_ptr(),
                 password.as_ptr(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_keychain_set_password", status, error)
@@ -170,8 +170,8 @@ impl Keychain {
             bridge::security_keychain_get_password(
                 account.as_ptr(),
                 service.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_string("security_keychain_get_password", raw, status, error)
@@ -186,7 +186,7 @@ impl Keychain {
             bridge::security_keychain_delete_password(
                 account.as_ptr(),
                 service.as_ptr(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_keychain_delete_password", status, error)
@@ -198,7 +198,11 @@ impl Keychain {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_keychain_list_accounts(service.as_ptr(), &mut status, &mut error)
+            bridge::security_keychain_list_accounts(
+                service.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_keychain_list_accounts", raw, status, error)
     }

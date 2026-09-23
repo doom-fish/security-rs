@@ -13,8 +13,8 @@ impl Transform {
             bridge::security_transform_encode_base64(
                 input.as_ptr().cast(),
                 bridge::len_to_isize(input.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         let bytes = bridge::required_data("security_transform_encode_base64", raw, status, error)?;
@@ -33,8 +33,8 @@ impl Transform {
             bridge::security_transform_decode_base64(
                 input.as_ptr().cast(),
                 bridge::len_to_isize(input.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data("security_transform_decode_base64", raw, status, error)

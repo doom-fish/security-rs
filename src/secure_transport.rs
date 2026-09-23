@@ -78,7 +78,7 @@ impl SecureTransportContext {
             bridge::security_secure_transport_set_protocol_min(
                 self.handle.as_ptr(),
                 protocol.as_ptr(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_secure_transport_set_protocol_min", status, error)
@@ -92,7 +92,7 @@ impl SecureTransportContext {
             bridge::security_secure_transport_set_protocol_max(
                 self.handle.as_ptr(),
                 protocol.as_ptr(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_secure_transport_set_protocol_max", status, error)
@@ -105,8 +105,8 @@ impl SecureTransportContext {
         let raw = unsafe {
             bridge::security_secure_transport_copy_state(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json("security_secure_transport_copy_state", raw, status, error)
@@ -118,7 +118,7 @@ fn create_context(
 ) -> Result<SecureTransportContext> {
     let mut status = 0;
     let mut error = std::ptr::null_mut();
-    let raw = unsafe { create(&mut status, &mut error) };
+    let raw = unsafe { create(&raw mut status, &raw mut error) };
     bridge::required_handle("security_secure_transport_create", raw, status, error)
         .map(|handle| SecureTransportContext { handle })
 }

@@ -20,7 +20,11 @@ impl DerivedKey {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_key_copy_attributes(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_key_copy_attributes(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_key_copy_attributes", raw, status, error)
     }
@@ -51,8 +55,8 @@ impl KeyDerivation {
                     )
                 })?,
                 bridge::len_to_isize(key_size_bits)?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle(

@@ -108,8 +108,8 @@ impl Trust {
                 bridge::len_to_isize(certificate_pointers.len())?,
                 policy_pointers.as_ptr(),
                 bridge::len_to_isize(policy_pointers.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_trust_create", raw, status, error)
@@ -126,7 +126,7 @@ impl Trust {
                 self.handle.as_ptr(),
                 pointers.as_ptr(),
                 bridge::len_to_isize(pointers.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_trust_set_policies", status, error)
@@ -137,7 +137,11 @@ impl Trust {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_trust_copy_policies(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_trust_copy_policies(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_trust_copy_policies", raw, status, error)
     }
@@ -155,7 +159,7 @@ impl Trust {
                 self.handle.as_ptr(),
                 pointers.as_ptr(),
                 bridge::len_to_isize(pointers.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_trust_set_anchor_certificates", status, error)
@@ -168,8 +172,8 @@ impl Trust {
         let raw = unsafe {
             bridge::security_trust_copy_custom_anchor_certificates(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json(
@@ -187,7 +191,7 @@ impl Trust {
             bridge::security_trust_set_anchor_certificates_only(
                 self.handle.as_ptr(),
                 only_anchor_certificates,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_trust_set_anchor_certificates_only", status, error)
@@ -200,7 +204,7 @@ impl Trust {
             bridge::security_trust_set_network_fetch_allowed(
                 self.handle.as_ptr(),
                 allowed,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_trust_set_network_fetch_allowed", status, error)
@@ -213,8 +217,8 @@ impl Trust {
         let allowed = unsafe {
             bridge::security_trust_get_network_fetch_allowed(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -234,7 +238,7 @@ impl Trust {
             bridge::security_trust_set_verify_date(
                 self.handle.as_ptr(),
                 system_time_to_unix(verify_date),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_trust_set_verify_date", status, error)
@@ -245,7 +249,11 @@ impl Trust {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_trust_get_verify_time(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_trust_get_verify_time(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         if status != 0 {
             return Err(bridge::status_error(
@@ -261,7 +269,8 @@ impl Trust {
     /// Wraps the corresponding `SecTrustRef` operation.
     pub fn evaluate(&self) -> Result<()> {
         let mut error = std::ptr::null_mut();
-        let trusted = unsafe { bridge::security_trust_evaluate(self.handle.as_ptr(), &mut error) };
+        let trusted =
+            unsafe { bridge::security_trust_evaluate(self.handle.as_ptr(), &raw mut error) };
         if trusted {
             Ok(())
         } else {
@@ -276,7 +285,11 @@ impl Trust {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let trusted = unsafe {
-            bridge::security_trust_evaluate_async(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_trust_evaluate_async(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         if status != 0 {
             return Err(bridge::status_error(
@@ -299,7 +312,11 @@ impl Trust {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_trust_get_trust_result(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_trust_get_trust_result(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         if status != 0 {
             return Err(bridge::status_error(
@@ -316,7 +333,11 @@ impl Trust {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_trust_copy_result(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_trust_copy_result(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_trust_copy_result", raw, status, error)
     }
@@ -326,7 +347,7 @@ impl Trust {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_trust_copy_key(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_trust_copy_key(self.handle.as_ptr(), &raw mut status, &raw mut error)
         };
         if status != 0 {
             return Err(bridge::status_error(
@@ -353,8 +374,8 @@ impl Trust {
         let raw = unsafe {
             bridge::security_trust_copy_certificate_chain(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         let array_handle =
@@ -371,8 +392,8 @@ impl Trust {
                 bridge::security_certificate_array_copy_item(
                     array_handle.as_ptr(),
                     bridge::len_to_isize(index)?,
-                    &mut status,
-                    &mut error,
+                    &raw mut status,
+                    &raw mut error,
                 )
             };
             let handle = bridge::required_handle(
@@ -391,7 +412,11 @@ impl Trust {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_trust_copy_exceptions(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_trust_copy_exceptions(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         if status != 0 {
             return Err(bridge::status_error(
@@ -411,7 +436,7 @@ impl Trust {
                 self.handle.as_ptr(),
                 exceptions.map_or(std::ptr::null(), |value| value.as_ptr().cast()),
                 exceptions.map_or(Ok(0), |value| bridge::len_to_isize(value.len()))?,
-                &mut error,
+                &raw mut error,
             )
         };
         if !error.is_null() {
@@ -432,7 +457,7 @@ impl Trust {
             bridge::security_trust_set_ocsp_response(
                 self.handle.as_ptr(),
                 responses.as_ptr(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_trust_set_ocsp_response", status, error)
@@ -446,7 +471,7 @@ impl Trust {
             bridge::security_trust_set_signed_certificate_timestamps(
                 self.handle.as_ptr(),
                 timestamps.as_ptr(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result(
@@ -460,7 +485,7 @@ impl Trust {
     pub fn set_options(&mut self, options: TrustOptions) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_trust_set_options(self.handle.as_ptr(), options.bits(), &mut error)
+            bridge::security_trust_set_options(self.handle.as_ptr(), options.bits(), &raw mut error)
         };
         bridge::status_result("security_trust_set_options", status, error)
     }
@@ -469,8 +494,9 @@ impl Trust {
     pub fn system_anchor_certificates() -> Result<Value> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw =
-            unsafe { bridge::security_trust_copy_anchor_certificates(&mut status, &mut error) };
+        let raw = unsafe {
+            bridge::security_trust_copy_anchor_certificates(&raw mut status, &raw mut error)
+        };
         bridge::required_json(
             "security_trust_copy_anchor_certificates",
             raw,

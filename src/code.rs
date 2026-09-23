@@ -111,7 +111,7 @@ impl Code {
     pub fn current() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw = unsafe { bridge::security_code_copy_self(&mut status, &mut error) };
+        let raw = unsafe { bridge::security_code_copy_self(&raw mut status, &raw mut error) };
         bridge::required_handle("security_code_copy_self", raw, status, error)
             .map(|handle| Self { handle })
     }
@@ -121,7 +121,7 @@ impl Code {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_code_copy_host(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_code_copy_host(self.handle.as_ptr(), &raw mut status, &raw mut error)
         };
         bridge::required_handle("security_code_copy_host", raw, status, error)
             .map(|handle| Self { handle })
@@ -143,8 +143,8 @@ impl Code {
                     .as_ref()
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
                 flags.bits(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle(
@@ -161,7 +161,11 @@ impl Code {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_code_copy_static_code(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_code_copy_static_code(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_handle("security_code_copy_static_code", raw, status, error)
             .map(StaticCode::from_handle)
@@ -206,8 +210,8 @@ impl Requirement {
             bridge::security_requirement_create_with_data(
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_requirement_create_with_data", raw, status, error)
@@ -220,7 +224,11 @@ impl Requirement {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_requirement_create_with_string(text.as_ptr(), &mut status, &mut error)
+            bridge::security_requirement_create_with_string(
+                text.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_handle(
             "security_requirement_create_with_string",
@@ -239,8 +247,8 @@ impl Requirement {
         let raw = unsafe {
             bridge::security_requirement_create_with_string_and_errors(
                 text.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle(
@@ -257,7 +265,11 @@ impl Requirement {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_requirement_copy_data(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_requirement_copy_data(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_data("security_requirement_copy_data", raw, status, error)
     }
@@ -267,7 +279,11 @@ impl Requirement {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_requirement_copy_string(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_requirement_copy_string(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_string("security_requirement_copy_string", raw, status, error)
     }
@@ -295,7 +311,11 @@ impl StaticCode {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_static_code_create_with_path(path.as_ptr(), &mut status, &mut error)
+            bridge::security_static_code_create_with_path(
+                path.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_handle("security_static_code_create_with_path", raw, status, error)
             .map(Self::from_handle)
@@ -311,8 +331,8 @@ impl StaticCode {
             bridge::security_static_code_create_with_path_and_attributes(
                 path.as_ptr(),
                 attributes.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle(
@@ -328,7 +348,7 @@ impl StaticCode {
     pub fn check_validity(&self) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_static_code_check_validity(self.handle.as_ptr(), &mut error)
+            bridge::security_static_code_check_validity(self.handle.as_ptr(), &raw mut error)
         };
         bridge::status_result("security_static_code_check_validity", status, error)
     }
@@ -345,7 +365,7 @@ impl StaticCode {
                 self.handle.as_ptr(),
                 flags.bits(),
                 requirement.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result(
@@ -367,7 +387,7 @@ impl StaticCode {
                 self.handle.as_ptr(),
                 flags.bits(),
                 requirement.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_static_code_check_static_validity", status, error)
@@ -385,7 +405,7 @@ impl StaticCode {
                 self.handle.as_ptr(),
                 flags.bits(),
                 requirement.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result(
@@ -400,7 +420,11 @@ impl StaticCode {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_static_code_copy_path(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_static_code_copy_path(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_string("security_static_code_copy_path", raw, status, error)
             .map(PathBuf::from)
@@ -413,8 +437,8 @@ impl StaticCode {
         let raw = unsafe {
             bridge::security_static_code_copy_designated_requirement(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_string(
@@ -432,8 +456,8 @@ impl StaticCode {
         let raw = unsafe {
             bridge::security_static_code_copy_signing_information(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         let value: Value = bridge::required_json(
@@ -490,7 +514,7 @@ impl StaticCode {
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
                 flags.bits(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_static_code_validate_file_resource", status, error)
@@ -500,7 +524,11 @@ impl StaticCode {
     pub fn map_memory(&self, flags: CodeSigningFlags) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_static_code_map_memory(self.handle.as_ptr(), flags.bits(), &mut error)
+            bridge::security_static_code_map_memory(
+                self.handle.as_ptr(),
+                flags.bits(),
+                &raw mut error,
+            )
         };
         bridge::status_result("security_static_code_map_memory", status, error)
     }
@@ -522,7 +550,8 @@ impl Task {
     pub fn current() -> Result<Self> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw = unsafe { bridge::security_task_create_from_self(&mut status, &mut error) };
+        let raw =
+            unsafe { bridge::security_task_create_from_self(&raw mut status, &raw mut error) };
         bridge::required_handle("security_task_create_from_self", raw, status, error)
             .map(|handle| Self { handle })
     }
@@ -532,7 +561,7 @@ impl Task {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_task_create_from_current_audit_token(&mut status, &mut error)
+            bridge::security_task_create_from_current_audit_token(&raw mut status, &raw mut error)
         };
         bridge::required_handle(
             "security_task_create_from_current_audit_token",
@@ -550,8 +579,8 @@ impl Task {
         let raw = unsafe {
             bridge::security_task_copy_signing_identifier(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if raw.is_null() && status == 0 {
@@ -571,8 +600,8 @@ impl Task {
             bridge::security_task_copy_value_for_entitlement(
                 self.handle.as_ptr(),
                 entitlement.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if raw.is_null() && status == 0 {
@@ -596,8 +625,8 @@ impl Task {
             bridge::security_task_copy_values_for_entitlements(
                 self.handle.as_ptr(),
                 entitlements.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json(

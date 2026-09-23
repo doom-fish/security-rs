@@ -28,7 +28,11 @@ impl PublicKey {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_key_copy_attributes(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_key_copy_attributes(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_key_copy_attributes", raw, status, error)
     }
@@ -65,8 +69,8 @@ impl PublicKey {
                 bridge::len_to_isize(signed_data.len())?,
                 signature.as_ptr().cast(),
                 bridge::len_to_isize(signature.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -108,8 +112,8 @@ impl Certificate {
             bridge::security_certificate_from_der(
                 der.as_ptr().cast(),
                 bridge::len_to_isize(der.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_certificate_from_der", raw, status, error)
@@ -135,8 +139,8 @@ impl Certificate {
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
                 format as u32,
                 item_type as u32,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_certificate_import_item", raw, status, error)
@@ -152,8 +156,8 @@ impl Certificate {
                 self.handle.as_ptr(),
                 format as u32,
                 pem_armour,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data("security_certificate_export_item", raw, status, error)
@@ -190,8 +194,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_common_name(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if raw.is_null() && status == 0 {
@@ -208,8 +212,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_email_addresses(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json(
@@ -227,8 +231,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_normalized_subject_sequence(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data(
@@ -246,8 +250,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_normalized_issuer_sequence(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data(
@@ -265,8 +269,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_serial_number(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data(
@@ -284,8 +288,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_not_valid_before(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if raw.is_null() && status == 0 {
@@ -307,8 +311,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_not_valid_after(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if raw.is_null() && status == 0 {
@@ -328,7 +332,11 @@ impl Certificate {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_certificate_copy_der(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_certificate_copy_der(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_data("security_certificate_copy_der", raw, status, error)
     }
@@ -340,8 +348,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_public_key(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_certificate_copy_public_key", raw, status, error)
@@ -352,7 +360,7 @@ impl Certificate {
     pub fn add_to_keychain(&self) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_certificate_add_to_keychain(self.handle.as_ptr(), &mut error)
+            bridge::security_certificate_add_to_keychain(self.handle.as_ptr(), &raw mut error)
         };
         bridge::status_result("security_certificate_add_to_keychain", status, error)
     }
@@ -369,8 +377,8 @@ impl Certificate {
                 self.handle.as_ptr(),
                 keys.as_ref()
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json("security_certificate_copy_values", raw, status, error)
@@ -383,8 +391,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_long_description(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_string(
@@ -402,8 +410,8 @@ impl Certificate {
         let raw = unsafe {
             bridge::security_certificate_copy_short_description(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_string(
@@ -428,8 +436,8 @@ impl Certificate {
                 key_usage
                     .as_ref()
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if raw.is_null() && status == 0 {
@@ -455,7 +463,7 @@ impl Certificate {
                 key_usage
                     .as_ref()
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_certificate_set_preferred", status, error)

@@ -105,7 +105,7 @@ impl CmsDecoder {
                 self.handle.as_ptr(),
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_cms_decoder_update_message", status, error)
@@ -115,7 +115,7 @@ impl CmsDecoder {
     pub fn finalize_message(&mut self) -> Result<()> {
         let mut error = std::ptr::null_mut();
         let status = unsafe {
-            bridge::security_cms_decoder_finalize_message(self.handle.as_ptr(), &mut error)
+            bridge::security_cms_decoder_finalize_message(self.handle.as_ptr(), &raw mut error)
         };
         bridge::status_result("security_cms_decoder_finalize_message", status, error)
     }
@@ -128,7 +128,7 @@ impl CmsDecoder {
                 self.handle.as_ptr(),
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_cms_decoder_set_detached_content", status, error)
@@ -141,8 +141,8 @@ impl CmsDecoder {
         let raw = unsafe {
             bridge::security_cms_decoder_copy_detached_content(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -162,8 +162,8 @@ impl CmsDecoder {
         let count = unsafe {
             bridge::security_cms_decoder_get_num_signers(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -193,8 +193,8 @@ impl CmsDecoder {
                 bridge::len_to_isize(signer_index)?,
                 policy.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
                 evaluate_sec_trust,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json(
@@ -213,8 +213,8 @@ impl CmsDecoder {
             bridge::security_cms_decoder_copy_signer_email_address(
                 self.handle.as_ptr(),
                 bridge::len_to_isize(signer_index)?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if raw.is_null() && status == 0 {
@@ -238,8 +238,8 @@ impl CmsDecoder {
             bridge::security_cms_decoder_copy_signer_cert(
                 self.handle.as_ptr(),
                 bridge::len_to_isize(signer_index)?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_cms_decoder_copy_signer_cert", raw, status, error)
@@ -253,8 +253,8 @@ impl CmsDecoder {
         let encrypted = unsafe {
             bridge::security_cms_decoder_is_content_encrypted(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -274,8 +274,8 @@ impl CmsDecoder {
         let raw = unsafe {
             bridge::security_cms_decoder_copy_encapsulated_content_type(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -293,7 +293,11 @@ impl CmsDecoder {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_cms_decoder_copy_content(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_cms_decoder_copy_content(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         if status != 0 {
             return Err(bridge::status_error(
@@ -313,8 +317,8 @@ impl CmsDecoder {
             let raw = bridge::security_cms_decoder_copy_signer_signing_time(
                 self.handle.as_ptr(),
                 bridge::len_to_isize(signer_index)?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             );
             (raw, status, error)
         })
@@ -328,8 +332,8 @@ impl CmsDecoder {
             let raw = bridge::security_cms_decoder_copy_signer_timestamp(
                 self.handle.as_ptr(),
                 bridge::len_to_isize(signer_index)?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             );
             (raw, status, error)
         })
@@ -350,8 +354,8 @@ impl CmsDecoder {
                     self.handle.as_ptr(),
                     policy.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
                     bridge::len_to_isize(signer_index)?,
-                    &mut status,
-                    &mut error,
+                    &raw mut status,
+                    &raw mut error,
                 );
                 (raw, status, error)
             },
@@ -366,8 +370,8 @@ impl CmsDecoder {
             bridge::security_cms_decoder_copy_signer_timestamp_certificates(
                 self.handle.as_ptr(),
                 bridge::len_to_isize(signer_index)?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json(
@@ -386,8 +390,8 @@ impl CmsDecoder {
             bridge::security_cms_decode_all_certificates(
                 std::ptr::null(),
                 0,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         let _ = raw;
@@ -422,7 +426,7 @@ impl CmsEncoder {
             bridge::security_cms_encoder_set_signer_algorithm(
                 self.handle.as_ptr(),
                 algorithm.as_ptr(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_cms_encoder_set_signer_algorithm", status, error)
@@ -438,7 +442,7 @@ impl CmsEncoder {
                 self.handle.as_ptr(),
                 pointers.as_ptr(),
                 bridge::len_to_isize(pointers.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_cms_encoder_add_signers", status, error)
@@ -449,7 +453,11 @@ impl CmsEncoder {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_cms_encoder_copy_signers(self.handle.as_ptr(), &mut status, &mut error)
+            bridge::security_cms_encoder_copy_signers(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_json("security_cms_encoder_copy_signers", raw, status, error)
     }
@@ -467,7 +475,7 @@ impl CmsEncoder {
                 self.handle.as_ptr(),
                 pointers.as_ptr(),
                 bridge::len_to_isize(pointers.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_cms_encoder_add_recipients", status, error)
@@ -480,8 +488,8 @@ impl CmsEncoder {
         let raw = unsafe {
             bridge::security_cms_encoder_copy_recipients(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json("security_cms_encoder_copy_recipients", raw, status, error)
@@ -494,7 +502,7 @@ impl CmsEncoder {
             bridge::security_cms_encoder_set_has_detached_content(
                 self.handle.as_ptr(),
                 detached_content,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result(
@@ -511,8 +519,8 @@ impl CmsEncoder {
         let detached = unsafe {
             bridge::security_cms_encoder_get_has_detached_content(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -533,7 +541,7 @@ impl CmsEncoder {
             bridge::security_cms_encoder_set_encapsulated_content_type_oid(
                 self.handle.as_ptr(),
                 oid.as_ptr(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result(
@@ -550,8 +558,8 @@ impl CmsEncoder {
         let raw = unsafe {
             bridge::security_cms_encoder_copy_encapsulated_content_type(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -577,7 +585,7 @@ impl CmsEncoder {
                 self.handle.as_ptr(),
                 pointers.as_ptr(),
                 bridge::len_to_isize(pointers.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_cms_encoder_add_supporting_certs", status, error)
@@ -590,8 +598,8 @@ impl CmsEncoder {
         let raw = unsafe {
             bridge::security_cms_encoder_copy_supporting_certs(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json(
@@ -609,7 +617,7 @@ impl CmsEncoder {
             bridge::security_cms_encoder_add_signed_attributes(
                 self.handle.as_ptr(),
                 signed_attributes.bits(),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_cms_encoder_add_signed_attributes", status, error)
@@ -625,7 +633,7 @@ impl CmsEncoder {
             bridge::security_cms_encoder_set_certificate_chain_mode(
                 self.handle.as_ptr(),
                 chain_mode as u32,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result(
@@ -642,8 +650,8 @@ impl CmsEncoder {
         let mode = unsafe {
             bridge::security_cms_encoder_get_certificate_chain_mode(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if status != 0 {
@@ -664,7 +672,7 @@ impl CmsEncoder {
                 self.handle.as_ptr(),
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_cms_encoder_update_content", status, error)
@@ -677,8 +685,8 @@ impl CmsEncoder {
         let raw = unsafe {
             bridge::security_cms_encoder_copy_encoded_content(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data(
@@ -697,8 +705,8 @@ impl CmsEncoder {
             let raw = bridge::security_cms_encoder_copy_signer_timestamp(
                 self.handle.as_ptr(),
                 bridge::len_to_isize(signer_index)?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             );
             (raw, status, error)
         })
@@ -719,8 +727,8 @@ impl CmsEncoder {
                     self.handle.as_ptr(),
                     policy.map_or(std::ptr::null_mut(), |value| value.handle().as_ptr()),
                     bridge::len_to_isize(signer_index)?,
-                    &mut status,
-                    &mut error,
+                    &raw mut status,
+                    &raw mut error,
                 );
                 (raw, status, error)
             },
@@ -736,7 +744,7 @@ impl Cms {
     pub fn encoder() -> Result<CmsEncoder> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw = unsafe { bridge::security_cms_encoder_create(&mut status, &mut error) };
+        let raw = unsafe { bridge::security_cms_encoder_create(&raw mut status, &raw mut error) };
         bridge::required_handle("security_cms_encoder_create", raw, status, error)
             .map(CmsEncoder::from_handle)
     }
@@ -745,7 +753,7 @@ impl Cms {
     pub fn decoder() -> Result<CmsDecoder> {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
-        let raw = unsafe { bridge::security_cms_decoder_create(&mut status, &mut error) };
+        let raw = unsafe { bridge::security_cms_decoder_create(&raw mut status, &raw mut error) };
         bridge::required_handle("security_cms_decoder_create", raw, status, error)
             .map(CmsDecoder::from_handle)
     }
@@ -765,8 +773,8 @@ impl Cms {
             bridge::security_cms_decode_all_certificates(
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         let array_handle =
@@ -783,8 +791,8 @@ impl Cms {
                 bridge::security_certificate_array_copy_item(
                     array_handle.as_ptr(),
                     bridge::len_to_isize(index)?,
-                    &mut status,
-                    &mut error,
+                    &raw mut status,
+                    &raw mut error,
                 )
             };
             let handle = bridge::required_handle(
@@ -832,8 +840,8 @@ impl Cms {
                 signed_attributes.bits(),
                 content.as_ptr().cast(),
                 bridge::len_to_isize(content.len())?,
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_data("security_cms_encode_content", raw, status, error)

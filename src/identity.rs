@@ -35,8 +35,8 @@ impl Identity {
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
                 password.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_identity_import_pkcs12_first", raw, status, error)
@@ -54,8 +54,8 @@ impl Identity {
             bridge::security_identity_create(
                 certificate.handle().as_ptr(),
                 private_key.handle().as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_identity_create", raw, status, error)
@@ -69,8 +69,8 @@ impl Identity {
         let raw = unsafe {
             bridge::security_identity_create_with_certificate(
                 certificate.handle().as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle(
@@ -106,8 +106,8 @@ impl Identity {
                 valid_issuers
                     .as_ref()
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         if raw.is_null() && status == 0 {
@@ -133,7 +133,7 @@ impl Identity {
                 key_usage
                     .as_ref()
                     .map_or(std::ptr::null(), |value| value.as_ptr()),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_identity_set_preferred", status, error)
@@ -145,7 +145,11 @@ impl Identity {
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
-            bridge::security_identity_copy_system_identity(domain.as_ptr(), &mut status, &mut error)
+            bridge::security_identity_copy_system_identity(
+                domain.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
         };
         bridge::required_handle("security_identity_copy_system_identity", raw, status, error)
             .map(Self::from_handle)
@@ -159,7 +163,7 @@ impl Identity {
             bridge::security_identity_set_system_identity(
                 domain.as_ptr(),
                 identity.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_identity_set_system_identity", status, error)
@@ -190,8 +194,8 @@ impl Identity {
         let raw = unsafe {
             bridge::security_identity_copy_certificate(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_handle("security_identity_copy_certificate", raw, status, error)
@@ -205,8 +209,8 @@ impl Identity {
         let raw = unsafe {
             bridge::security_identity_copy_private_key_attributes(
                 self.handle.as_ptr(),
-                &mut status,
-                &mut error,
+                &raw mut status,
+                &raw mut error,
             )
         };
         bridge::required_json(

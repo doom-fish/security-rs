@@ -15,7 +15,7 @@ impl SecureRandom {
             bridge::security_random_fill(
                 buffer.as_mut_ptr().cast(),
                 bridge::len_to_isize(buffer.len())?,
-                &mut error,
+                &raw mut error,
             )
         };
         bridge::status_result("security_random_fill", status, error)
