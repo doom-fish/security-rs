@@ -1,7 +1,9 @@
 use serde_json::Value;
+use zeroize::Zeroizing;
 
 use crate::bridge;
 use crate::error::Result;
+use crate::secret::SecretBytes;
 
 #[derive(Debug)]
 /// Wraps derived key material backed by `SecKeyRef`.
@@ -28,6 +30,19 @@ impl DerivedKey {
         };
         bridge::required_json("security_key_copy_attributes", raw, status, error)
     }
+
+    pub fn to_bytes(&self) -> Result<SecretBytes> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_key_copy_raw_bytes(
+                self.handle.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
+        };
+        bridge::required_secret("security_key_copy_raw_bytes", raw, status, error)
+    }
 }
 
 /// Wraps password-based key-derivation helpers in Security.framework.
@@ -41,12 +56,12 @@ impl KeyDerivation {
         rounds: u32,
         key_size_bits: usize,
     ) -> Result<DerivedKey> {
-        let password = bridge::cstring(password)?;
+        let password = Zeroizing::new(bridge::cstring(password)?.into_bytes_with_nul());
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_key_derivation_derive_pbkdf2_sha256(
-                password.as_ptr(),
+                password.as_ptr().cast(),
                 salt.as_ptr().cast(),
                 bridge::len_to_isize(salt.len())?,
                 isize::try_from(rounds).map_err(|_| {

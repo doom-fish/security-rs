@@ -157,17 +157,36 @@ impl Policy {
             .map(Self::from_handle)
     }
 
-    /// Wraps the corresponding `SecPolicyRef` operation.
-    pub fn ssl(server: bool, hostname: Option<&str>) -> Result<Self> {
-        let hostname = hostname.map(bridge::cstring).transpose()?;
+    /// Wraps `SecPolicyCreateSSL` and requires the leaf certificate to be valid for `hostname`.
+    pub fn ssl(server: bool, hostname: &str) -> Result<Self> {
+        if hostname.is_empty() {
+            return Err(SecurityError::InvalidArgument(
+                "an SSL policy needs a hostname; Policy::ssl_any_hostname skips the check"
+                    .to_owned(),
+            ));
+        }
+        let hostname = bridge::cstring(hostname)?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_policy_create_ssl(
                 server,
-                hostname
-                    .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_c_str().as_ptr()),
+                hostname.as_ptr(),
+                &raw mut status,
+                &raw mut error,
+            )
+        };
+        bridge::required_handle("security_policy_create_ssl", raw, status, error)
+            .map(Self::from_handle)
+    }
+
+    pub fn ssl_any_hostname(server: bool) -> Result<Self> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_policy_create_ssl(
+                server,
+                std::ptr::null(),
                 &raw mut status,
                 &raw mut error,
             )

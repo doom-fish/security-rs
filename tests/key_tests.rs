@@ -65,3 +65,31 @@ fn private_key_import_rejects_items_that_are_not_private_keys() {
     )
     .is_err());
 }
+
+#[test]
+fn signs_and_verifies_with_sha384_and_sha512_algorithms() -> security::Result<()> {
+    let private_key = PrivateKey::from_data(
+        &common::fixture("test-key-rsa.pkcs1.der"),
+        KeyType::Rsa,
+        2048,
+    )?;
+    let public_key = private_key.public_key()?;
+    for algorithm in [
+        SignatureAlgorithm::RsaSignatureMessagePkcs1v15Sha384,
+        SignatureAlgorithm::RsaSignatureMessagePkcs1v15Sha512,
+        SignatureAlgorithm::RsaSignatureMessagePssSha384,
+        SignatureAlgorithm::RsaSignatureMessagePssSha512,
+    ] {
+        let signature = private_key.sign(algorithm, b"security-rs")?;
+        assert!(public_key.verify_signature(algorithm, b"security-rs", &signature)?);
+        assert!(!public_key.verify_signature(algorithm, b"tampered", &signature)?);
+    }
+    let digest = [0x5a_u8; 48];
+    let signature = private_key.sign(SignatureAlgorithm::RsaSignatureDigestPssSha384, &digest)?;
+    assert!(public_key.verify_signature(
+        SignatureAlgorithm::RsaSignatureDigestPssSha384,
+        &digest,
+        &signature
+    )?);
+    Ok(())
+}

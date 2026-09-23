@@ -24,6 +24,32 @@ private func signatureAlgorithm(_ rawValue: UInt32) -> SecKeyAlgorithm? {
         return .ecdsaSignatureMessageX962SHA256
     case 4:
         return .ecdsaSignatureDigestX962SHA256
+    case 5:
+        return .rsaSignatureMessagePKCS1v15SHA384
+    case 6:
+        return .rsaSignatureMessagePKCS1v15SHA512
+    case 7:
+        return .rsaSignatureDigestPKCS1v15SHA384
+    case 8:
+        return .rsaSignatureDigestPKCS1v15SHA512
+    case 9:
+        return .rsaSignatureMessagePSSSHA384
+    case 10:
+        return .rsaSignatureMessagePSSSHA512
+    case 11:
+        return .rsaSignatureDigestPSSSHA256
+    case 12:
+        return .rsaSignatureDigestPSSSHA384
+    case 13:
+        return .rsaSignatureDigestPSSSHA512
+    case 14:
+        return .ecdsaSignatureMessageX962SHA384
+    case 15:
+        return .ecdsaSignatureMessageX962SHA512
+    case 16:
+        return .ecdsaSignatureDigestX962SHA384
+    case 17:
+        return .ecdsaSignatureDigestX962SHA512
     default:
         return nil
     }
@@ -240,6 +266,32 @@ public func securityKeyGetBlockSize(_ keyPointer: UnsafeMutableRawPointer?) -> I
     }
 
     return SecKeyGetBlockSize(key)
+}
+
+@_cdecl("security_key_copy_raw_bytes")
+public func securityKeyCopyRawBytes(
+    _ keyPointer: UnsafeMutableRawPointer?,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let key = unbox(keyPointer, as: SecKey.self) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "key handle is required")
+        return nil
+    }
+
+    var exported: CFData?
+    let status = SecItemExport(key, .formatRawKey, SecItemImportExportFlags(), nil, &exported)
+    guard status == errSecSuccess, let exported else {
+        setStatus(statusOut, status == errSecSuccess ? errSecParam : status)
+        setError(errorOut, "SecItemExport(kSecFormatRawKey) failed: \(statusMessage(status))")
+        return nil
+    }
+
+    return retainSecret(exported)
 }
 
 @_cdecl("security_key_copy_external_representation")

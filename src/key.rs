@@ -82,15 +82,32 @@ pub enum SignatureAlgorithm {
     EcdsaSignatureMessageX962Sha256 = 3,
     /// Mirrors a `SecKeyAlgorithm` signing constant.
     EcdsaSignatureDigestX962Sha256 = 4,
+    RsaSignatureMessagePkcs1v15Sha384 = 5,
+    RsaSignatureMessagePkcs1v15Sha512 = 6,
+    RsaSignatureDigestPkcs1v15Sha384 = 7,
+    RsaSignatureDigestPkcs1v15Sha512 = 8,
+    RsaSignatureMessagePssSha384 = 9,
+    RsaSignatureMessagePssSha512 = 10,
+    RsaSignatureDigestPssSha256 = 11,
+    RsaSignatureDigestPssSha384 = 12,
+    RsaSignatureDigestPssSha512 = 13,
+    EcdsaSignatureMessageX962Sha384 = 14,
+    EcdsaSignatureMessageX962Sha512 = 15,
+    EcdsaSignatureDigestX962Sha384 = 16,
+    EcdsaSignatureDigestX962Sha512 = 17,
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Mirrors encryption cases from `SecKeyAlgorithm`.
 pub enum EncryptionAlgorithm {
-    /// Mirrors a `SecKeyAlgorithm` encryption constant.
+    /// Mirrors `kSecKeyAlgorithmRSAEncryptionRaw`: textbook RSA without padding. It is
+    /// deterministic and malleable, so never use it to encrypt data; it only exists for
+    /// implementing other padding schemes. Prefer an OAEP variant.
     RsaEncryptionRaw = 0,
-    /// Mirrors a `SecKeyAlgorithm` encryption constant.
+    /// Mirrors `kSecKeyAlgorithmRSAEncryptionPKCS1`: PKCS#1 v1.5 padding, which is open to
+    /// padding-oracle (Bleichenbacher) attacks whenever decryption failures are observable.
+    /// Use it only for interoperability; prefer an OAEP variant.
     RsaEncryptionPkcs1 = 1,
     /// Mirrors a `SecKeyAlgorithm` encryption constant.
     RsaEncryptionOaepSha1 = 2,

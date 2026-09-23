@@ -257,6 +257,11 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_key_copy_raw_bytes(
+        pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
     pub(crate) fn security_key_copy_attributes(
         pointer: *mut c_void,
         status_out: *mut OsStatus,

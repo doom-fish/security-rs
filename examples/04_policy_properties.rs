@@ -2,7 +2,7 @@ use security::{Policy, PolicyIdentifier, PolicyName, PolicyProperties};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let basic = Policy::basic_x509()?;
-    let ssl = Policy::ssl(true, Some("localhost"))?;
+    let ssl = Policy::ssl(true, "localhost")?;
     let custom_ssl = Policy::with_properties(
         PolicyIdentifier::AppleSsl,
         &PolicyProperties {
@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..PolicyProperties::default()
         },
     )?;
-    let revocation = Policy::revocation(0)?;
+    let revocation = Policy::revocation(3)?;
     println!(
         "basic={:?} ssl={:?} custom_ssl={:?} revocation={:?}",
         basic.properties()?,
