@@ -2,7 +2,7 @@
 
 use core::fmt;
 
-use apple_cf::CFError;
+use apple_cf::NullPointerError;
 
 /// Convenient result alias used throughout this crate.
 pub type Result<T, E = SecurityError> = std::result::Result<T, E>;
@@ -71,7 +71,7 @@ pub enum SecurityError {
     /// JSON serialization or deserialization failed.
     Serialization(String),
     /// A Core Foundation creation call returned a null pointer.
-    CoreFoundation(CFError),
+    CoreFoundation(NullPointerError),
     /// Security.framework returned an unexpected `OSStatus`.
     Status(StatusError),
 }
