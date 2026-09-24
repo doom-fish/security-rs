@@ -51,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is an error.
 - Out-of-range certificate, trust and CMS dates are errors instead of panics.
 - Authorization right names must be non-empty and free of NUL bytes.
+- The build script no longer adds the toolchain's Swift 5.5 back-deployment directory
+  (`usr/lib/swift-5.5/macosx`) to the link search path. Its old `libswift_Concurrency.dylib`
+  shadowed the SDK's, so a binary that also linked Swift code using newer concurrency APIs (such
+  as apple-localauthentication's bridge) failed to link.
 
 ### Changed
 

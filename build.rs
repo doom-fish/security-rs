@@ -63,13 +63,8 @@ fn main() {
             let xcode_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             let swift_runtime =
                 format!("{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx");
-            let swift_compat = format!(
-                "{xcode_path}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx"
-            );
             println!("cargo:rustc-link-search=native={swift_runtime}");
-            println!("cargo:rustc-link-search=native={swift_compat}");
             println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_runtime}");
-            println!("cargo:rustc-link-arg=-Wl,-rpath,{swift_compat}");
         }
     }
 }
