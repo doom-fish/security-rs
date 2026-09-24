@@ -78,9 +78,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CodeStatus` and `SigningInformation::code_status`.
 - `CodeSigningFlags::{CHECK_TRUSTED_ANCHORS, NO_NETWORK_ACCESS, ENFORCE_REVOCATION_CHECKS,
   CONSIDER_EXPIRATION}`.
-- `AccessControl::as_ptr` (the borrowed `SecAccessControlRef`, for cryptokit-rs and
-  localauthentication-rs), `AccessControl::protection` and `AccessControl::flags` (the values it
-  was created with), and `Clone`, which shares the immutable object.
+- `AccessControl::as_ptr` (the borrowed `SecAccessControlRef`, which cryptokit-rs Secure Enclave
+  key creation and apple-localauthentication's `LAContext::evaluate_access_control` use),
+  `AccessControl::protection` and `AccessControl::flags` (the values it was created with), and
+  `Clone`, which shares the immutable object.
 - `KeychainOptions` (protection class, data protection keychain, access group, synchronizable,
   `AccessControl`, `LAContext` authentication context) and
   `Keychain::{set,get,delete,list_accounts}_with_options`; `SecretBytes`.

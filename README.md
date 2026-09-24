@@ -102,8 +102,11 @@ fn store_token(token: &[u8]) -> security::Result<()> {
 }
 ```
 
-`AccessControl` wraps a real `SecAccessControlRef`; `AccessControl::as_ptr` lends it to other
-crates such as cryptokit-rs (Secure Enclave keys) and localauthentication-rs.
+`AccessControl` wraps a real `SecAccessControlRef`. The object cannot be changed after creation, so
+`Clone` shares it. cryptokit-rs Secure Enclave key creation and apple-localauthentication's
+`LAContext::evaluate_access_control` take the same `AccessControl` (both crates re-export it).
+`AccessControl::as_ptr` lends the borrowed ref to other FFI code; it is valid while the
+`AccessControl` is alive.
 
 The data protection keychain, access groups, synchronizable items and access-controlled items need
 a signed process with a keychain access group entitlement; unsigned tools get
