@@ -15,14 +15,14 @@ mod key;
 mod policy;
 
 pub use access_control::*;
+pub use apple_cf::raw::{
+    Boolean, CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef,
+    CFIndex, CFMutableDictionaryRef, CFNumberRef, CFOptionFlags, CFStringRef, CFTypeID, CFTypeRef,
+    OSStatus,
+};
 pub use item::*;
 pub use key::*;
 pub use policy::*;
-pub use apple_cf::raw::{
-    Boolean, CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef,
-    CFIndex, CFMutableDictionaryRef, CFNumberRef, CFOptionFlags, CFStringRef, CFTypeID,
-    CFTypeRef, OSStatus,
-};
 pub type SecRandomRef = *const c_void;
 pub type SecAccessControlRef = *const c_void;
 pub type SecCertificateRef = *const c_void;
@@ -47,6 +47,8 @@ pub mod status {
     pub const DUPLICATE_ITEM: OSStatus = -25299;
     pub const ITEM_NOT_FOUND: OSStatus = -25300;
     pub const INTERACTION_NOT_ALLOWED: OSStatus = -25308;
+    pub const USER_CANCELED: OSStatus = -128;
+    pub const AUTH_FAILED: OSStatus = -25293;
 }
 
 extern "C" {

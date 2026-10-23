@@ -8,7 +8,7 @@ const PBKDF2_SHA256_PASSWORD_SALT_4096_32: [u8; 32] = [
 #[test]
 fn derives_symmetric_key() -> security::Result<()> {
     let key = KeyDerivation::derive_pbkdf2_sha256("password", b"salty-salt", 1_000, 256)?;
-    assert!(!key.attributes()?.as_object().unwrap().is_empty());
+    assert_ne!(key.attributes()?.as_object().unwrap().len(), 0);
     let bytes = key.to_bytes()?;
     assert_eq!(bytes.len(), 32);
     assert_eq!(format!("{bytes:?}"), "SecretBytes(<redacted>)");

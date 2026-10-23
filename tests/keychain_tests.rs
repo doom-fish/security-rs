@@ -4,8 +4,8 @@ use std::ffi::{c_char, c_void};
 
 use security::error::status;
 use security::{
-    AccessControl, AccessControlFlags, AccessControlProtection, Keychain, KeychainOptions,
-    SecurityError,
+    AccessControl, AccessControlFlags, AccessControlProtection, InternetPassword, Keychain,
+    KeychainOptions, SecurityError,
 };
 
 #[link(name = "LocalAuthentication", kind = "framework")]
@@ -38,6 +38,16 @@ struct RemoveOnDrop<'a> {
 impl Drop for RemoveOnDrop<'_> {
     fn drop(&mut self) {
         let _ = Keychain::delete_with_options(self.account, self.service, self.options);
+    }
+}
+
+struct RemoveInternetOnDrop<'a> {
+    server: &'a str,
+}
+
+impl Drop for RemoveInternetOnDrop<'_> {
+    fn drop(&mut self) {
+        let _ = InternetPassword::delete(self.server);
     }
 }
 
@@ -74,6 +84,34 @@ fn generic_password_round_trip() -> security::Result<()> {
     assert!(matches!(
         Keychain::get(account, &service),
         Err(SecurityError::ItemNotFound(_))
+    ));
+    Ok(())
+}
+
+#[test]
+fn internet_password_round_trip() -> security::Result<()> {
+    let server = common::unique_service("internet-password");
+    let _cleanup = RemoveInternetOnDrop { server: &server };
+
+    assert!(InternetPassword::get(&server)?.is_none());
+    InternetPassword::set(&server, "first-account", [0, 0xff, 1])?;
+    let saved = InternetPassword::get(&server)?.expect("stored internet password");
+    assert_eq!(saved.account, "first-account");
+    assert_eq!(saved.secret.as_bytes(), &[0, 0xff, 1]);
+
+    InternetPassword::set(&server, "second-account", b"new\x00secret")?;
+    let updated = InternetPassword::get(&server)?.expect("updated internet password");
+    assert_eq!(updated.account, "second-account");
+    assert_eq!(updated.secret.as_bytes(), b"new\x00secret");
+
+    InternetPassword::delete(&server)?;
+    assert!(InternetPassword::get(&server)?.is_none());
+    let error = InternetPassword::delete(&server).expect_err("second delete must fail");
+    assert_eq!(error.code(), Some(status::ITEM_NOT_FOUND));
+    assert!(matches!(
+        error,
+        SecurityError::Status(error)
+            if error.operation == "SecItemDelete" && error.status == status::ITEM_NOT_FOUND
     ));
     Ok(())
 }

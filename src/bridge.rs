@@ -77,6 +77,24 @@ unsafe extern "C" {
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
+    pub(crate) fn security_internet_password_set_item(
+        server: *const c_char,
+        account: *const c_char,
+        secret: *const c_void,
+        secret_len: isize,
+        failed_operation_out: *mut i32,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
+    pub(crate) fn security_internet_password_copy_item(
+        server: *const c_char,
+        account_out: *mut *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_internet_password_delete_item(
+        server: *const c_char,
+        error_out: *mut *mut c_void,
+    ) -> OsStatus;
     pub(crate) fn security_access_control_get_type_id() -> usize;
     pub(crate) fn security_access_control_create(
         protection: *const c_char,
@@ -1070,6 +1088,10 @@ pub(crate) fn required_secret(
     error_raw: *mut c_void,
 ) -> Result<SecretBytes> {
     let handle = required_handle(operation, raw, status, error_raw)?;
+    read_secret(&handle, operation)
+}
+
+pub(crate) fn read_secret(handle: &Handle, operation: &'static str) -> Result<SecretBytes> {
     let length = usize::try_from(unsafe { security_secret_len(handle.as_ptr()) })
         .map_err(|_| SecurityError::Serialization(format!("{operation} returned no secret")))?;
     let mut bytes = Zeroizing::new(vec![0_u8; length]);
@@ -1137,7 +1159,7 @@ fn parse_json<T: DeserializeOwned>(json: &str) -> Result<T> {
         .map_err(|error| SecurityError::Serialization(format!("invalid bridge JSON: {error}")))
 }
 
-fn read_string(handle: &Handle) -> Result<String> {
+pub(crate) fn read_string(handle: &Handle) -> Result<String> {
     let length =
         usize::try_from(unsafe { security_string_len(handle.as_ptr()) }).map_err(|_| {
             SecurityError::Serialization("negative string length from bridge".to_owned())

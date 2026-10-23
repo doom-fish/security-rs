@@ -31,8 +31,8 @@ fn certificate_new_api_symbols_compile() -> security::Result<()> {
     let certificate = Certificate::from_der(&common::fixture("test-cert.der"))?;
     assert!(Certificate::type_id() > 0);
     let _ = certificate.values(&[])?;
-    assert!(!certificate.long_description()?.is_empty());
-    assert!(!certificate.short_description()?.is_empty());
+    assert_ne!(certificate.long_description()?, "");
+    assert_ne!(certificate.short_description()?, "");
 
     reference(|value: &Certificate| value.add_to_keychain());
     reference(|name: &str, key_usage: &[&str]| Certificate::preferred(name, key_usage));
@@ -174,7 +174,7 @@ fn code_new_api_symbols_compile() -> security::Result<()> {
     let requirement = Requirement::from_string("anchor apple")?;
     let requirement_data = requirement.data()?;
     let requirement_text = requirement.string()?;
-    assert!(!requirement_text.is_empty());
+    assert_ne!(requirement_text, "");
     let _ = Requirement::from_data(&requirement_data)?;
     let _ = Requirement::from_string_with_errors("anchor apple")?;
     let _ = StaticCode::from_path(static_code.path()?)?;

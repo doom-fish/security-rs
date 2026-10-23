@@ -80,8 +80,8 @@ pub use key::{
 pub use key_agreement::{AgreementPrivateKey, AgreementPublicKey};
 pub use key_derivation::{DerivedKey, KeyDerivation};
 pub use keychain::{
-    AccessControl, AccessControlFlags, AccessControlProtection, Keychain, KeychainEntry,
-    KeychainOptions,
+    AccessControl, AccessControlFlags, AccessControlProtection, InternetCredential,
+    InternetPassword, Keychain, KeychainEntry, KeychainOptions,
 };
 pub use policy::{Policy, PolicyIdentifier, PolicyName, PolicyProperties, RevocationFlags};
 pub use random_bytes::SecureRandom;
@@ -111,8 +111,8 @@ pub mod prelude {
     pub use crate::key_agreement::{AgreementPrivateKey, AgreementPublicKey};
     pub use crate::key_derivation::{DerivedKey, KeyDerivation};
     pub use crate::keychain::{
-        AccessControl, AccessControlFlags, AccessControlProtection, Keychain, KeychainEntry,
-        KeychainOptions,
+        AccessControl, AccessControlFlags, AccessControlProtection, InternetCredential,
+        InternetPassword, Keychain, KeychainEntry, KeychainOptions,
     };
     pub use crate::policy::{
         Policy, PolicyIdentifier, PolicyName, PolicyProperties, RevocationFlags,

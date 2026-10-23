@@ -103,12 +103,12 @@ Re-audited against MacOSX26.2.sdk. Verified all 157 safe-wrapper implementations
 | SecIdentityGetTypeID | function | SecIdentity.h | Identity::type_id |
 | SecIdentitySetPreferred | function | SecIdentity.h | Identity::set_preferred |
 | SecIdentitySetSystemIdentity | function | SecIdentity.h | Identity::set_system_identity |
-| SecItemAdd | function | SecItem.h | Keychain::set, KeychainEntry::set |
-| SecItemCopyMatching | function | SecItem.h | Keychain::get, Keychain::list_accounts, KeychainEntry::get |
-| SecItemDelete | function | SecItem.h | Keychain::delete, KeychainEntry::delete |
+| SecItemAdd | function | SecItem.h | Keychain::set, KeychainEntry::set, InternetPassword::set |
+| SecItemCopyMatching | function | SecItem.h | Keychain::get, Keychain::list_accounts, KeychainEntry::get, InternetPassword::get |
+| SecItemDelete | function | SecItem.h | Keychain::delete, KeychainEntry::delete, InternetPassword::delete |
 | SecItemExport | function | SecImportExport.h | Certificate::export_item |
 | SecItemImport | function | SecImportExport.h | Certificate::import_item, PrivateKey::import_item |
-| SecItemUpdate | function | SecItem.h | Keychain::set, KeychainEntry::set |
+| SecItemUpdate | function | SecItem.h | Keychain::set, KeychainEntry::set, InternetPassword::set |
 | SecKeyCopyAttributes | function | SecKey.h | PublicKey::attributes, AgreementPrivateKey::attributes, AgreementPublicKey::attributes, DerivedKey::attributes, Identity::private_key_attributes |
 | SecKeyCopyExternalRepresentation | function | SecKey.h | PublicKey::external_representation, PrivateKey::external_representation |
 | SecKeyCopyKeyExchangeResult | function | SecKey.h | AgreementPrivateKey::shared_secret |

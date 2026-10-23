@@ -11,7 +11,7 @@ fn evaluates_trust_with_custom_anchor() -> security::Result<()> {
     trust.set_anchor_certificates_only(true)?;
     trust.set_network_fetch_allowed(false)?;
     trust.evaluate()?;
-    assert!(!trust.certificate_chain()?.is_empty());
+    assert_ne!(trust.certificate_chain()?.len(), 0);
     Ok(())
 }
 

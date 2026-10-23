@@ -9,6 +9,9 @@ use crate::bridge::{self, Handle};
 use crate::error::{Result, SecurityError};
 use crate::secret::SecretBytes;
 
+mod internet_password;
+pub use internet_password::{InternetCredential, InternetPassword};
+
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     /// Mirrors `SecAccessControlCreateFlags`.

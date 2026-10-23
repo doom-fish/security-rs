@@ -18,6 +18,7 @@ need macOS 15, and the `AppleSslServer`/`AppleSslClient`-style policy identifier
 - Swift bridge over `Security.framework` with retained opaque handles and ergonomic Rust wrappers.
 - Wrappers for the 158 top-level functions listed as verified in [`COVERAGE_AUDIT.md`](COVERAGE_AUDIT.md). That audit counts a self-selected set of 321 functions from 25 headers (163 marked exempt), not the whole framework or its constants.
 - Raw C FFI preserved behind the `raw-ffi` Cargo feature, now exhaustively covering the non-deprecated macOS `SecAccessControl` / `SecItem` / `SecKey` / `SecPolicy` headers.
+- Internet password items with server-based account updates, binary secrets, and exact `OSStatus` errors.
 - Safe modules for all primary logical areas:
   - `keychain`
   - `identity`
@@ -33,7 +34,7 @@ need macOS 15, and the `AppleSslServer`/`AppleSslClient`-style policy identifier
   - `cms`
   - `key_derivation`
   - `key_agreement`
-- 16 numbered headless examples plus integration tests across every area.
+- 17 numbered headless examples plus integration tests across every area.
 
 ## Quick start
 
@@ -108,6 +109,14 @@ fn store_token(token: &[u8]) -> security::Result<()> {
 `AccessControl::as_ptr` lends the borrowed ref to other FFI code; it is valid while the
 `AccessControl` is alive.
 
+`InternetPassword::set` updates an item by server and adds it if none exists.
+`InternetPassword::get` returns an `InternetCredential`, or `None` if the item is absent or the user cancels.
+`InternetPassword::delete` reports an error if the item does not exist.
+If a `SecItem` call fails, use `SecurityError::code()` to get the exact `OSStatus`.
+For `SecurityError::Status(error)`, `error.operation` identifies the failed `SecItem` call.
+Compare the status with `security::error::status::{SUCCESS, ITEM_NOT_FOUND, USER_CANCELED, AUTH_FAILED}`.
+If a read result lacks a string account or data secret, `InternetPassword::get` returns `SecurityError::UnexpectedType`.
+
 The data protection keychain, access groups, synchronizable items and access-controlled items need
 a signed process with a keychain access group entitlement; unsigned tools get
 `errSecMissingEntitlement` (`security::error::status::MISSING_ENTITLEMENT`).
@@ -115,6 +124,7 @@ a signed process with a keychain access group entitlement; unsigned tools get
 ## Area overview
 
 - **`Keychain`:** generic-password CRUD for binary secrets with protection class, data protection keychain, access group, synchronizable, access-control and authentication-context options; service account listing; access-control creation.
+- **`InternetPassword`:** internet-password CRUD by server with account updates and binary secrets.
 - **`Identity`:** PKCS#12 import, certificate access, identity creation, preference lookup/updates, system-identity management, and private-key attribute inspection. PKCS#12 import needs macOS 15: before that `SecPKCS12Import` always stores the private key in the login keychain, so `import_pkcs12_first` returns `SecurityError::Unsupported` instead.
 - **`Certificate`:** DER/PEM loading, Security item import/export, descriptions, values, preferences, summaries, names, emails, serials, validity dates, and public keys.
 - **`Key`:** raw/private-key import, modern signing, RSA encryption/decryption, external representations, block-size inspection, and `SecKey` type IDs.
@@ -145,6 +155,7 @@ Key examples:
 - `13_key_agreement_shared_secret`
 - `14_key_import_sign_verify`
 - `15_key_encrypt_export`
+- `17_internet_password`
 
 ## Raw FFI
 

@@ -22,11 +22,14 @@ fn signs_verifies_encrypts_and_exports_private_keys() -> security::Result<()> {
     assert_eq!(PrivateKey::type_id(), PublicKey::type_id());
     assert!(raw_key.attributes()?.is_object());
     assert_eq!(raw_key.block_size(), 256);
-    assert!(!raw_key.external_representation()?.is_empty());
+    assert_ne!(raw_key.external_representation()?, Vec::<u8>::new());
 
     let derived_public_key = raw_key.public_key()?;
     assert_eq!(derived_public_key.block_size(), 256);
-    assert!(!derived_public_key.external_representation()?.is_empty());
+    assert_ne!(
+        derived_public_key.external_representation()?,
+        Vec::<u8>::new()
+    );
 
     let ciphertext =
         derived_public_key.encrypt(EncryptionAlgorithm::RsaEncryptionOaepSha256, b"security-rs")?;
@@ -41,7 +44,7 @@ fn signs_verifies_encrypts_and_exports_private_keys() -> security::Result<()> {
     let certificate = Certificate::from_pem(&common::fixture("test-cert.pem"))?;
     let public_key = certificate.public_key()?;
     assert_eq!(public_key.block_size(), 256);
-    assert!(!public_key.external_representation()?.is_empty());
+    assert_ne!(public_key.external_representation()?, Vec::<u8>::new());
     assert!(public_key.verify_signature(
         SignatureAlgorithm::RsaSignatureMessagePkcs1v15Sha256,
         b"security-rs",
