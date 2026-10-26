@@ -6,7 +6,7 @@ Safe Rust bindings for Apple's [Security](https://developer.apple.com/documentat
 
 ```toml
 [dependencies]
-security-rs = "0.6"
+security-rs = "0.7"
 ```
 
 Requires macOS 12 or later and Rust 1.82 or later. Some APIs need a newer macOS and return an
@@ -19,6 +19,7 @@ need macOS 15, and the `AppleSslServer`/`AppleSslClient`-style policy identifier
 - Wrappers for the 158 top-level functions listed as verified in [`COVERAGE_AUDIT.md`](COVERAGE_AUDIT.md). That audit counts a self-selected set of 321 functions from 25 headers (163 marked exempt), not the whole framework or its constants.
 - Raw C FFI preserved behind the `raw-ffi` Cargo feature, now exhaustively covering the non-deprecated macOS `SecAccessControl` / `SecItem` / `SecKey` / `SecPolicy` headers.
 - Internet password items with server-based account updates, binary secrets, and exact `OSStatus` errors.
+- Public-key import through `PublicKey::from_data` and fixed-width ECDSA signatures through `EcdsaSignatureDigestRfc4754`.
 - Safe modules for all primary logical areas:
   - `keychain`
   - `identity`
@@ -78,6 +79,22 @@ fn client_is_allowed(token: AuditToken) -> security::Result<bool> {
 ```
 
 `Code::from_xpc_message` wraps `SecCodeCreateWithXPCMessage` for a received XPC message.
+
+## ECDSA signatures
+
+`PublicKey::from_data(point, KeyType::EcSecPrimeRandom, 256)` imports an uncompressed X9.63 P-256 public point.
+The point has 65 bytes, with `0x04` before the two 32-byte coordinates.
+Use `SignatureAlgorithm::EcdsaSignatureDigestRfc4754` with a SHA-256 digest and a 64-byte `r || s` signature.
+The caller selects the hash and checks the signature length.
+`verify_signature` returns `false` for a signature that does not match.
+These APIs support macOS 12.
+
+For public-key verification alone, set `default-features = false`.
+This mode supplies `PublicKey`, `Certificate`, `PrivateKey`, the algorithm types, and error types without `base64` or `zeroize`.
+`Certificate::from_pem` and the other framework modules require the default `full` feature.
+Version 0.7 changes `default-features = false` to this reduced API.
+The default API remains unchanged.
+On other targets, the library has no API and the build script does not invoke Swift.
 
 ## Keychain items
 

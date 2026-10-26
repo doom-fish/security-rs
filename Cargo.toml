@@ -1,6 +1,6 @@
 [package]
 name = "security-rs"
-version = "0.6.2"
+version = "0.7.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/security-rs"
@@ -38,19 +38,20 @@ name = "security"
 crate-type = ["lib"]
 
 [features]
-default = []
-async = ["dep:doom-fish-utils"]
-raw-ffi = []
+default = ["full"]
+full = ["dep:base64", "dep:zeroize"]
+async = ["full", "dep:doom-fish-utils"]
+raw-ffi = ["full"]
 
-[dependencies]
+[target.'cfg(target_os = "macos")'.dependencies]
 apple-cf = { path = "../apple-cf-rs", version = ">=0.11, <0.12" }
-base64 = "0.22"
+base64 = { version = "0.22", optional = true }
 bitflags = "2.6"
 doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.4.1, <0.5", optional = true }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-zeroize = ">=1.6, <1.9"
+zeroize = { version = ">=1.6, <1.9", optional = true }
 
 [dev-dependencies]
 pollster = "0.3"

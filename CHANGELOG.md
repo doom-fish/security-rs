@@ -5,6 +5,20 @@ All notable changes to `security-rs` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-10-26
+
+### Added
+
+- `PublicKey::from_data` imports public keys through `SecKeyCreateWithData`.
+- `SignatureAlgorithm::EcdsaSignatureDigestRfc4754` verifies fixed-width ECDSA signatures over a digest.
+
+### Changed
+
+- With `default-features = false`, the crate supplies key, certificate, and error types without `base64` or `zeroize`.
+- The default `full` feature preserves the previous API.
+- `Certificate::from_pem` and the other framework modules require `full`.
+- On other targets, the library has no API and the build script does not invoke Swift.
+
 ## [0.6.2] - 2026-10-26
 
 ### Fixed

@@ -50,6 +50,11 @@ private func signatureAlgorithm(_ rawValue: UInt32) -> SecKeyAlgorithm? {
         return .ecdsaSignatureDigestX962SHA384
     case 17:
         return .ecdsaSignatureDigestX962SHA512
+    case 18:
+        if #available(macOS 14.0, *) {
+            return .ecdsaSignatureDigestRFC4754
+        }
+        return .ecdsaSignatureRFC4754
     default:
         return nil
     }
@@ -89,6 +94,43 @@ private func encryptionAlgorithm(_ rawValue: UInt32) -> SecKeyAlgorithm? {
 @_cdecl("security_key_get_type_id")
 public func securityKeyGetTypeID() -> UInt {
     SecKeyGetTypeID()
+}
+
+@_cdecl("security_public_key_create_with_data")
+public func securityPublicKeyCreateWithData(
+    _ dataPointer: UnsafeRawPointer?,
+    _ dataLength: Int,
+    _ keyTypeRawValue: UInt32,
+    _ keySizeBits: Int,
+    _ statusOut: UnsafeMutablePointer<Int32>?,
+    _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
+) -> UnsafeMutableRawPointer? {
+    clearError(errorOut)
+    setStatus(statusOut, errSecSuccess)
+
+    guard let keyData = dataFromPointer(dataPointer, length: dataLength),
+          let keyType = keyTypeConstant(keyTypeRawValue),
+          keySizeBits > 0
+    else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, "key data, key type, and key size are required")
+        return nil
+    }
+
+    let attributes: [CFString: Any] = [
+        kSecAttrKeyType: keyType,
+        kSecAttrKeyClass: kSecAttrKeyClassPublic,
+        kSecAttrKeySizeInBits: NSNumber(value: keySizeBits),
+    ]
+
+    var error: Unmanaged<CFError>?
+    guard let key = SecKeyCreateWithData(keyData as CFData, attributes as CFDictionary, &error) else {
+        setStatus(statusOut, errSecParam)
+        setError(errorOut, error)
+        return nil
+    }
+
+    return retain(key)
 }
 
 @_cdecl("security_private_key_create_with_data")

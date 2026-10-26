@@ -95,6 +95,7 @@ pub enum SignatureAlgorithm {
     EcdsaSignatureMessageX962Sha512 = 15,
     EcdsaSignatureDigestX962Sha384 = 16,
     EcdsaSignatureDigestX962Sha512 = 17,
+    EcdsaSignatureDigestRfc4754 = 18,
 }
 
 #[repr(u32)]
@@ -224,6 +225,7 @@ impl PrivateKey {
         Self { handle }
     }
 
+    #[cfg(feature = "full")]
     pub(crate) fn handle(&self) -> &Handle {
         &self.handle
     }

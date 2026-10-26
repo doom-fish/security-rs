@@ -1,5 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[cfg(feature = "full")]
 use base64::Engine;
 use serde_json::Value;
 
@@ -21,6 +22,23 @@ impl PublicKey {
 
     pub(crate) fn from_handle(handle: Handle) -> Self {
         Self { handle }
+    }
+
+    pub fn from_data(data: &[u8], key_type: key::KeyType, key_size_bits: usize) -> Result<Self> {
+        let mut status = 0;
+        let mut error = std::ptr::null_mut();
+        let raw = unsafe {
+            bridge::security_public_key_create_with_data(
+                data.as_ptr().cast(),
+                bridge::len_to_isize(data.len())?,
+                key_type as u32,
+                bridge::len_to_isize(key_size_bits)?,
+                &raw mut status,
+                &raw mut error,
+            )
+        };
+        bridge::required_handle("security_public_key_create_with_data", raw, status, error)
+            .map(Self::from_handle)
     }
 
     /// Wraps the corresponding public `SecKeyRef` operation.
@@ -95,10 +113,12 @@ impl Certificate {
         Self { handle }
     }
 
+    #[cfg(feature = "full")]
     pub(crate) fn handle(&self) -> &Handle {
         &self.handle
     }
 
+    #[cfg(feature = "full")]
     pub(crate) fn from_array_handle(array_handle: &Handle) -> Result<Vec<Self>> {
         let count = usize::try_from(unsafe {
             bridge::security_certificate_array_get_count(array_handle.as_ptr())
@@ -192,6 +212,7 @@ impl Certificate {
     }
 
     /// Wraps the corresponding `SecCertificateRef` operation.
+    #[cfg(feature = "full")]
     pub fn from_pem(pem: &[u8]) -> Result<Self> {
         let pem = std::str::from_utf8(pem).map_err(|error| {
             SecurityError::InvalidArgument(format!("PEM input was not valid UTF-8: {error}"))

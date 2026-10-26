@@ -5,9 +5,11 @@ use std::rc::Rc;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+#[cfg(feature = "full")]
 use zeroize::Zeroizing;
 
 use crate::error::{OsStatus, Result, SecurityError};
+#[cfg(feature = "full")]
 use crate::secret::SecretBytes;
 
 #[cfg(feature = "async")]
@@ -282,6 +284,14 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_key_copy_attributes(
         pointer: *mut c_void,
+        status_out: *mut OsStatus,
+        error_out: *mut *mut c_void,
+    ) -> *mut c_void;
+    pub(crate) fn security_public_key_create_with_data(
+        data_pointer: *const c_void,
+        data_length: isize,
+        key_type: u32,
+        key_size_bits: isize,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -1081,6 +1091,7 @@ pub(crate) fn required_json<T: DeserializeOwned>(
     parse_json(&json)
 }
 
+#[cfg(feature = "full")]
 pub(crate) fn required_secret(
     operation: &'static str,
     raw: *mut c_void,
@@ -1091,6 +1102,7 @@ pub(crate) fn required_secret(
     read_secret(&handle, operation)
 }
 
+#[cfg(feature = "full")]
 pub(crate) fn read_secret(handle: &Handle, operation: &'static str) -> Result<SecretBytes> {
     let length = usize::try_from(unsafe { security_secret_len(handle.as_ptr()) })
         .map_err(|_| SecurityError::Serialization(format!("{operation} returned no secret")))?;

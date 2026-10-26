@@ -6,6 +6,9 @@ Legend:
 - 🟡 partial
 - ⏭️ skipped
 
+The default `full` feature exposes the full safe API.
+Without default features, the crate exposes key, certificate, and error types, except `Certificate::from_pem`.
+
 The safe API defaults to the Swift bridge. Direct raw C declarations remain available behind the `raw-ffi` Cargo feature, which now exhaustively covers the non-deprecated macOS-available `SecAccessControl.h`, `SecItem.h`, `SecKey.h`, and `SecPolicy.h` surfaces. [`COVERAGE_AUDIT.md`](COVERAGE_AUDIT.md) lists every function of a self-selected 321-function sample (25 headers, MacOSX26.2.sdk, not regenerated for later SDKs) as verified or exempt; it measures that sample, not the framework, and counts wrappers regardless of how much of each API's option space they expose.
 
 | Area | API / header surface | Status | Notes |
@@ -36,6 +39,7 @@ The safe API defaults to the Swift bridge. Direct raw C declarations remain avai
 | Certificate | `SecCertificateAddToKeychain` | ✅ | Exposed through `Certificate::add_to_keychain`. |
 | Certificate | Deprecated infer-label helpers | ⏭️ | Deprecated legacy APIs, superseded by `SecItem*` and modern certificate accessors. |
 | Key | `SecKeyCreateWithData`, `SecKeyCopyPublicKey`, `SecKeyCreateSignature`, `SecKeyVerifySignature` | ✅ | Exposed through `PrivateKey`, `PublicKey`, and signature helpers. |
+| Key | Public `SecKeyCreateWithData`, `kSecKeyAlgorithmECDSASignatureDigestRFC4754` | ✅ | `PublicKey::from_data` imports public keys. `EcdsaSignatureDigestRfc4754` accepts a digest and fixed-width `r || s` bytes. |
 | Key | `SecKeyCreateEncryptedData`, `SecKeyCreateDecryptedData` | ✅ | Exposed through `PublicKey::encrypt` / `PrivateKey::decrypt`. |
 | Key | `SecKeyCopyExternalRepresentation`, `SecKeyGetBlockSize`, `SecKeyGetTypeID` | ✅ | Exposed through `external_representation`, `block_size`, and `type_id` helpers. |
 | Key | Non-deprecated macOS `SecKey.h` raw constants and modern functions | ✅ | Exposed through the exhaustive `raw-ffi` surface. |

@@ -2,6 +2,9 @@ use std::env;
 use std::process::Command;
 
 fn main() {
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("macos") {
+        return;
+    }
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=swift-bridge");
     println!("cargo:rerun-if-env-changed=DOCS_RS");
