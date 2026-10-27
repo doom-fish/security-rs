@@ -2,7 +2,32 @@
 
 use core::fmt;
 
-use apple_cf::NullPointerError;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NullPointerError {
+    operation: &'static str,
+}
+
+impl NullPointerError {
+    pub const fn new(operation: &'static str) -> Self {
+        Self { operation }
+    }
+
+    pub const fn operation(&self) -> &'static str {
+        self.operation
+    }
+}
+
+impl fmt::Display for NullPointerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} returned a null Core Foundation/Core Graphics pointer",
+            self.operation
+        )
+    }
+}
+
+impl std::error::Error for NullPointerError {}
 
 /// Convenient result alias used throughout this crate.
 pub type Result<T, E = SecurityError> = std::result::Result<T, E>;
@@ -72,7 +97,6 @@ pub enum SecurityError {
         /// Expected Core Foundation family.
         expected: &'static str,
     },
-    /// JSON serialization or deserialization failed.
     Serialization(String),
     /// A Core Foundation creation call returned a null pointer.
     CoreFoundation(NullPointerError),
@@ -231,7 +255,7 @@ mod tests {
             message: "boom".to_owned(),
         };
         let error = SecurityError::Status(wrapped.clone());
-        let serialization = SecurityError::Serialization("invalid json".to_owned());
+        let serialization = SecurityError::Serialization("invalid binary data".to_owned());
 
         assert_eq!(error.to_string(), wrapped.to_string());
         assert_eq!(

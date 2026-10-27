@@ -7,7 +7,8 @@
     missing_docs
 )]
 
-use libc::{c_char, c_void, size_t};
+use std::ffi::{c_char, c_void};
+type size_t = usize;
 
 mod access_control;
 mod item;
@@ -15,11 +16,55 @@ mod key;
 mod policy;
 
 pub use access_control::*;
-pub use apple_cf::raw::{
-    Boolean, CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef,
-    CFIndex, CFMutableDictionaryRef, CFNumberRef, CFOptionFlags, CFStringRef, CFTypeID, CFTypeRef,
-    OSStatus,
-};
+pub type Boolean = u8;
+pub type CFIndex = isize;
+pub type CFOptionFlags = usize;
+pub type CFTypeID = usize;
+pub type CFTypeRef = *const c_void;
+pub type OSStatus = i32;
+
+#[repr(C)]
+pub struct __CFString {
+    _private: [u8; 0],
+}
+#[repr(C)]
+pub struct __CFAllocator {
+    _private: [u8; 0],
+}
+#[repr(C)]
+pub struct __CFArray {
+    _private: [u8; 0],
+}
+#[repr(C)]
+pub struct __CFDictionary {
+    _private: [u8; 0],
+}
+#[repr(C)]
+pub struct __CFData {
+    _private: [u8; 0],
+}
+#[repr(C)]
+pub struct __CFError {
+    _private: [u8; 0],
+}
+#[repr(C)]
+pub struct __CFBoolean {
+    _private: [u8; 0],
+}
+#[repr(C)]
+pub struct __CFNumber {
+    _private: [u8; 0],
+}
+
+pub type CFStringRef = *const __CFString;
+pub type CFAllocatorRef = *const __CFAllocator;
+pub type CFArrayRef = *const __CFArray;
+pub type CFDictionaryRef = *const __CFDictionary;
+pub type CFMutableDictionaryRef = *mut __CFDictionary;
+pub type CFDataRef = *const __CFData;
+pub type CFErrorRef = *mut __CFError;
+pub type CFBooleanRef = *const __CFBoolean;
+pub type CFNumberRef = *const __CFNumber;
 pub use item::*;
 pub use key::*;
 pub use policy::*;

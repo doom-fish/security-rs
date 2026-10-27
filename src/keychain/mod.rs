@@ -1,41 +1,156 @@
-use std::ffi::{c_void, CString};
+use std::ffi::c_void;
 
-use bitflags::bitflags;
-use serde_json::json;
-
-use apple_cf::cf::CFType;
-
-use crate::bridge::{self, Handle};
+use crate::bridge::{self, CoreFoundationHandle, Handle};
 use crate::error::{Result, SecurityError};
 use crate::secret::SecretBytes;
+use crate::Value;
 
 mod internet_password;
 pub use internet_password::{InternetCredential, InternetPassword};
 
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    /// Mirrors `SecAccessControlCreateFlags`.
-    pub struct AccessControlFlags: u64 {
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const DEFAULTS = 0;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const USER_PRESENCE = 1 << 0;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const BIOMETRY_ANY = 1 << 1;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const BIOMETRY_CURRENT_SET = 1 << 3;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const DEVICE_PASSCODE = 1 << 4;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const COMPANION = 1 << 5;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const OR = 1 << 14;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const AND = 1 << 15;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const PRIVATE_KEY_USAGE = 1 << 30;
-        /// Mirrors a `SecAccessControlCreateFlags` bit.
-        const APPLICATION_PASSWORD = 1 << 31;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+#[must_use]
+/// Mirrors `SecAccessControlCreateFlags`.
+pub struct AccessControlFlags(u64);
+
+impl AccessControlFlags {
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const DEFAULTS: Self = Self(0);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const USER_PRESENCE: Self = Self(1 << 0);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const BIOMETRY_ANY: Self = Self(1 << 1);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const BIOMETRY_CURRENT_SET: Self = Self(1 << 3);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const DEVICE_PASSCODE: Self = Self(1 << 4);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const COMPANION: Self = Self(1 << 5);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const OR: Self = Self(1 << 14);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const AND: Self = Self(1 << 15);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const PRIVATE_KEY_USAGE: Self = Self(1 << 30);
+    /// Mirrors a `SecAccessControlCreateFlags` bit.
+    pub const APPLICATION_PASSWORD: Self = Self(1 << 31);
+
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+    pub const fn all() -> Self {
+        Self(0xc000_c03b)
+    }
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+    pub const fn from_bits(bits: u64) -> Option<Self> {
+        if bits & !Self::all().0 == 0 {
+            Some(Self(bits))
+        } else {
+            None
+        }
+    }
+    pub const fn from_bits_retain(bits: u64) -> Self {
+        Self(bits)
+    }
+    pub const fn from_bits_truncate(bits: u64) -> Self {
+        Self(bits & Self::all().0)
+    }
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+    pub const fn is_all(self) -> bool {
+        self.0 & Self::all().0 == Self::all().0
+    }
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+    pub const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+    pub const fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+    pub const fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+    pub const fn symmetric_difference(self, other: Self) -> Self {
+        Self(self.0 ^ other.0)
+    }
+    pub const fn complement(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+    pub fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+    pub fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
+    }
+    pub fn toggle(&mut self, other: Self) {
+        self.0 ^= other.0;
+    }
+    pub fn set(&mut self, other: Self, value: bool) {
+        if value {
+            self.0 |= other.0;
+        } else {
+            self.0 &= !other.0;
+        }
+    }
+}
+
+impl std::ops::BitOr for AccessControlFlags {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+impl std::ops::BitAnd for AccessControlFlags {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+impl std::ops::BitXor for AccessControlFlags {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self {
+        Self(self.0 ^ rhs.0)
+    }
+}
+impl std::ops::Sub for AccessControlFlags {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 & !rhs.0)
+    }
+}
+impl std::ops::Not for AccessControlFlags {
+    type Output = Self;
+    fn not(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+}
+impl std::ops::BitOrAssign for AccessControlFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+impl std::ops::BitAndAssign for AccessControlFlags {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+impl std::ops::BitXorAssign for AccessControlFlags {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 ^= rhs.0;
+    }
+}
+impl std::ops::SubAssign for AccessControlFlags {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 &= !rhs.0;
     }
 }
 
@@ -70,7 +185,7 @@ impl AccessControlProtection {
 #[derive(Debug, Clone)]
 /// Wraps `SecAccessControlRef`.
 pub struct AccessControl {
-    object: CFType,
+    object: CoreFoundationHandle,
     protection: AccessControlProtection,
     flags: AccessControlFlags,
 }
@@ -94,7 +209,7 @@ impl AccessControl {
                 &raw mut error,
             )
         };
-        let Some(object) = (unsafe { CFType::from_raw(raw) }) else {
+        let Some(object) = CoreFoundationHandle::from_raw(raw) else {
             return Err(bridge::status_error(
                 "security_access_control_create",
                 status,
@@ -177,16 +292,28 @@ impl KeychainOptions {
         Ok(self)
     }
 
-    fn bridge_json(&self) -> Result<CString> {
-        let mut options = json!({
-            "accessibility": self.accessibility.as_bridge_name(),
-            "synchronizable": self.synchronizable,
-            "data_protection_keychain": self.data_protection_keychain,
-        });
+    fn bridge_value(&self) -> Value {
+        let mut options = std::collections::BTreeMap::from([
+            (
+                "accessibility".to_owned(),
+                Value::String(self.accessibility.as_bridge_name().to_owned()),
+            ),
+            (
+                "synchronizable".to_owned(),
+                Value::Bool(self.synchronizable),
+            ),
+            (
+                "data_protection_keychain".to_owned(),
+                Value::Bool(self.data_protection_keychain),
+            ),
+        ]);
         if let Some(access_group) = &self.access_group {
-            options["access_group"] = json!(access_group);
+            options.insert(
+                "access_group".to_owned(),
+                Value::String(access_group.clone()),
+            );
         }
-        bridge::json_cstring(&options)
+        Value::Object(options)
     }
 
     fn access_control_ptr(&self) -> *mut c_void {
@@ -282,7 +409,7 @@ impl Keychain {
         let secret = secret.as_ref();
         let account = bridge::cstring(account)?;
         let service = bridge::cstring(service)?;
-        let options_json = options.bridge_json()?;
+        let options_value = bridge::InputValue::new(&options.bridge_value())?;
         let mut error = std::ptr::null_mut();
         let status = unsafe {
             bridge::security_keychain_set_item(
@@ -290,7 +417,7 @@ impl Keychain {
                 service.as_ptr(),
                 secret.as_ptr().cast(),
                 bridge::len_to_isize(secret.len())?,
-                options_json.as_ptr(),
+                options_value.as_ptr(),
                 options.access_control_ptr(),
                 options.authentication_context_ptr(),
                 &raw mut error,
@@ -306,14 +433,14 @@ impl Keychain {
     ) -> Result<SecretBytes> {
         let account = bridge::cstring(account)?;
         let service = bridge::cstring(service)?;
-        let options_json = options.bridge_json()?;
+        let options_value = bridge::InputValue::new(&options.bridge_value())?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_keychain_copy_item(
                 account.as_ptr(),
                 service.as_ptr(),
-                options_json.as_ptr(),
+                options_value.as_ptr(),
                 options.authentication_context_ptr(),
                 &raw mut status,
                 &raw mut error,
@@ -329,13 +456,13 @@ impl Keychain {
     ) -> Result<()> {
         let account = bridge::cstring(account)?;
         let service = bridge::cstring(service)?;
-        let options_json = options.bridge_json()?;
+        let options_value = bridge::InputValue::new(&options.bridge_value())?;
         let mut error = std::ptr::null_mut();
         let status = unsafe {
             bridge::security_keychain_delete_item(
                 account.as_ptr(),
                 service.as_ptr(),
-                options_json.as_ptr(),
+                options_value.as_ptr(),
                 options.authentication_context_ptr(),
                 &raw mut error,
             )
@@ -348,19 +475,20 @@ impl Keychain {
         options: &KeychainOptions,
     ) -> Result<Vec<String>> {
         let service = bridge::cstring(service)?;
-        let options_json = options.bridge_json()?;
+        let options_value = bridge::InputValue::new(&options.bridge_value())?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_keychain_list_accounts(
                 service.as_ptr(),
-                options_json.as_ptr(),
+                options_value.as_ptr(),
                 options.authentication_context_ptr(),
                 &raw mut status,
                 &raw mut error,
             )
         };
-        bridge::required_json("security_keychain_list_accounts", raw, status, error)
+        bridge::required_value("security_keychain_list_accounts", raw, status, error)?
+            .into_strings("security_keychain_list_accounts")
     }
 }
 
@@ -407,11 +535,21 @@ mod tests {
 
     #[test]
     fn default_options_protect_items_when_unlocked() {
-        let json = KeychainOptions::default().bridge_json().unwrap();
-        let value: serde_json::Value = serde_json::from_str(json.to_str().unwrap()).unwrap();
-        assert_eq!(value["accessibility"], "when_unlocked");
-        assert_eq!(value["synchronizable"], false);
-        assert_eq!(value["data_protection_keychain"], false);
+        let value = KeychainOptions::default().bridge_value();
+        assert_eq!(
+            value.get("accessibility").and_then(Value::as_str),
+            Some("when_unlocked")
+        );
+        assert_eq!(
+            value.get("synchronizable").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            value
+                .get("data_protection_keychain")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
         assert!(value.get("access_group").is_none());
         assert_eq!(
             AccessControlProtection::default(),
@@ -426,12 +564,25 @@ mod tests {
             .access_group("TEAMID.group")
             .synchronizable(true)
             .data_protection_keychain(true);
-        let json = options.bridge_json().unwrap();
-        let value: serde_json::Value = serde_json::from_str(json.to_str().unwrap()).unwrap();
-        assert_eq!(value["accessibility"], "when_unlocked_this_device_only");
-        assert_eq!(value["access_group"], "TEAMID.group");
-        assert_eq!(value["synchronizable"], true);
-        assert_eq!(value["data_protection_keychain"], true);
+        let value = options.bridge_value();
+        assert_eq!(
+            value.get("accessibility").and_then(Value::as_str),
+            Some("when_unlocked_this_device_only")
+        );
+        assert_eq!(
+            value.get("access_group").and_then(Value::as_str),
+            Some("TEAMID.group")
+        );
+        assert_eq!(
+            value.get("synchronizable").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            value
+                .get("data_protection_keychain")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
         assert!(options.access_control_ptr().is_null());
         assert!(options.authentication_context_ptr().is_null());
     }

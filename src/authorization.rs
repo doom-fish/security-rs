@@ -1,29 +1,147 @@
-use bitflags::bitflags;
-use serde_json::Value;
+use crate::Value;
 
 use crate::bridge;
 use crate::error::{Result, SecurityError};
 
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    /// Mirrors Authorization Services option bits used with `AuthorizationCreate`.
-    pub struct AuthorizationOptions: u32 {
-        /// Mirrors an Authorization Services option bit.
-        const DEFAULTS = 0;
-        /// Mirrors an Authorization Services option bit.
-        const INTERACTION_ALLOWED = 1 << 0;
-        /// Mirrors an Authorization Services option bit.
-        const EXTEND_RIGHTS = 1 << 1;
-        /// Mirrors an Authorization Services option bit.
-        const PARTIAL_RIGHTS = 1 << 2;
-        /// Mirrors an Authorization Services option bit.
-        const DESTROY_RIGHTS = 1 << 3;
-        /// Mirrors an Authorization Services option bit.
-        const PREAUTHORIZE = 1 << 4;
-        /// Mirrors an Authorization Services option bit.
-        const SKIP_INTERNAL_AUTH = 1 << 9;
-        /// Mirrors an Authorization Services option bit.
-        const NO_DATA = 1 << 20;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+#[must_use]
+/// Mirrors Authorization Services option bits used with `AuthorizationCreate`.
+pub struct AuthorizationOptions(u32);
+
+impl AuthorizationOptions {
+    /// Mirrors an Authorization Services option bit.
+    pub const DEFAULTS: Self = Self(0);
+    /// Mirrors an Authorization Services option bit.
+    pub const INTERACTION_ALLOWED: Self = Self(1 << 0);
+    /// Mirrors an Authorization Services option bit.
+    pub const EXTEND_RIGHTS: Self = Self(1 << 1);
+    /// Mirrors an Authorization Services option bit.
+    pub const PARTIAL_RIGHTS: Self = Self(1 << 2);
+    /// Mirrors an Authorization Services option bit.
+    pub const DESTROY_RIGHTS: Self = Self(1 << 3);
+    /// Mirrors an Authorization Services option bit.
+    pub const PREAUTHORIZE: Self = Self(1 << 4);
+    /// Mirrors an Authorization Services option bit.
+    pub const SKIP_INTERNAL_AUTH: Self = Self(1 << 9);
+    /// Mirrors an Authorization Services option bit.
+    pub const NO_DATA: Self = Self(1 << 20);
+
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+    pub const fn all() -> Self {
+        Self(0x0010_021f)
+    }
+    pub const fn bits(self) -> u32 {
+        self.0
+    }
+    pub const fn from_bits(bits: u32) -> Option<Self> {
+        if bits & !Self::all().0 == 0 {
+            Some(Self(bits))
+        } else {
+            None
+        }
+    }
+    pub const fn from_bits_retain(bits: u32) -> Self {
+        Self(bits)
+    }
+    pub const fn from_bits_truncate(bits: u32) -> Self {
+        Self(bits & Self::all().0)
+    }
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+    pub const fn is_all(self) -> bool {
+        self.0 & Self::all().0 == Self::all().0
+    }
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+    pub const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+    pub const fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+    pub const fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+    pub const fn symmetric_difference(self, other: Self) -> Self {
+        Self(self.0 ^ other.0)
+    }
+    pub const fn complement(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+    pub fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+    pub fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
+    }
+    pub fn toggle(&mut self, other: Self) {
+        self.0 ^= other.0;
+    }
+    pub fn set(&mut self, other: Self, value: bool) {
+        if value {
+            self.0 |= other.0;
+        } else {
+            self.0 &= !other.0;
+        }
+    }
+}
+
+impl std::ops::BitOr for AuthorizationOptions {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+impl std::ops::BitAnd for AuthorizationOptions {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+impl std::ops::BitXor for AuthorizationOptions {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self {
+        Self(self.0 ^ rhs.0)
+    }
+}
+impl std::ops::Sub for AuthorizationOptions {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 & !rhs.0)
+    }
+}
+impl std::ops::Not for AuthorizationOptions {
+    type Output = Self;
+    fn not(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+}
+impl std::ops::BitOrAssign for AuthorizationOptions {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+impl std::ops::BitAndAssign for AuthorizationOptions {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+impl std::ops::BitXorAssign for AuthorizationOptions {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 ^= rhs.0;
+    }
+}
+impl std::ops::SubAssign for AuthorizationOptions {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 &= !rhs.0;
     }
 }
 
@@ -110,29 +228,29 @@ impl Authorization {
             bridge::security_authorization_copy_info(
                 self.handle.as_ptr(),
                 tag.as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::BridgeString::as_ptr),
                 &raw mut status,
                 &raw mut error,
             )
         };
-        bridge::required_json("security_authorization_copy_info", raw, status, error)
+        bridge::required_value("security_authorization_copy_info", raw, status, error)
     }
 
     /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
     pub fn copy_rights(&self, rights: &[&str], options: AuthorizationOptions) -> Result<Value> {
-        let rights_json = rights_json(rights)?;
+        let rights_value = rights_value(rights)?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_authorization_copy_rights(
                 self.handle.as_ptr(),
-                rights_json.as_ptr(),
+                rights_value.as_ptr(),
                 options.bits(),
                 &raw mut status,
                 &raw mut error,
             )
         };
-        bridge::required_json("security_authorization_copy_rights", raw, status, error)
+        bridge::required_value("security_authorization_copy_rights", raw, status, error)
     }
 
     /// Wraps the corresponding Authorization Services operation for `AuthorizationRef`.
@@ -141,19 +259,19 @@ impl Authorization {
         rights: &[&str],
         options: AuthorizationOptions,
     ) -> Result<Value> {
-        let rights_json = rights_json(rights)?;
+        let rights_value = rights_value(rights)?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_authorization_copy_rights_async(
                 self.handle.as_ptr(),
-                rights_json.as_ptr(),
+                rights_value.as_ptr(),
                 options.bits(),
                 &raw mut status,
                 &raw mut error,
             )
         };
-        bridge::required_json(
+        bridge::required_value(
             "security_authorization_copy_rights_async",
             raw,
             status,
@@ -162,7 +280,7 @@ impl Authorization {
     }
 }
 
-pub(crate) fn rights_json(rights: &[&str]) -> Result<std::ffi::CString> {
+pub(crate) fn rights_value(rights: &[&str]) -> Result<bridge::InputValue> {
     if rights.is_empty() {
         return Err(SecurityError::InvalidArgument(
             "at least one authorization right is required".to_owned(),
@@ -176,7 +294,7 @@ pub(crate) fn rights_json(rights: &[&str]) -> Result<std::ffi::CString> {
             "authorization right names must be non-empty and free of NUL bytes".to_owned(),
         ));
     }
-    bridge::json_cstring(&rights)
+    bridge::InputValue::strings(rights)
 }
 
 #[cfg(test)]
@@ -184,16 +302,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rights_json_rejects_empty_and_nul_names() {
-        assert!(rights_json(&[]).is_err());
-        assert!(rights_json(&[""]).is_err());
-        assert!(rights_json(&["system.privilege.admin\0other"]).is_err());
+    fn rights_value_rejects_empty_and_nul_names() {
+        assert!(rights_value(&[]).is_err());
+        assert!(rights_value(&[""]).is_err());
+        assert!(rights_value(&["system.privilege.admin\0other"]).is_err());
+        let value = rights_value(&["system.preferences"]).unwrap();
         assert_eq!(
-            rights_json(&["system.preferences"])
-                .unwrap()
-                .to_str()
-                .unwrap(),
-            r#"["system.preferences"]"#
+            unsafe { bridge::value_abi::decode(&*value.as_ptr(), 0) }.unwrap(),
+            Value::Array(vec![Value::String("system.preferences".to_owned())])
         );
     }
 

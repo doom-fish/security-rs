@@ -3,14 +3,57 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::rc::Rc;
 
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 #[cfg(feature = "full")]
-use zeroize::Zeroizing;
+use crate::secret::Zeroizing;
+
+pub(crate) mod value_abi;
+use crate::Value;
+use value_abi::read_value;
+pub(crate) use value_abi::{AbiBuffer, AbiValue, InputValue};
 
 use crate::error::{OsStatus, Result, SecurityError};
 #[cfg(feature = "full")]
 use crate::secret::SecretBytes;
+
+#[cfg(feature = "full")]
+unsafe extern "C" {
+    fn CFRetain(pointer: *const c_void) -> *const c_void;
+    fn CFRelease(pointer: *const c_void);
+}
+
+#[cfg(feature = "full")]
+#[derive(Debug)]
+pub(crate) struct CoreFoundationHandle(NonNull<c_void>);
+
+#[cfg(feature = "full")]
+impl CoreFoundationHandle {
+    pub(crate) fn from_raw(pointer: *mut c_void) -> Option<Self> {
+        NonNull::new(pointer).map(Self)
+    }
+
+    pub(crate) const fn as_ptr(&self) -> *mut c_void {
+        self.0.as_ptr()
+    }
+}
+
+#[cfg(feature = "full")]
+impl Clone for CoreFoundationHandle {
+    fn clone(&self) -> Self {
+        unsafe {
+            CFRetain(self.0.as_ptr());
+        }
+        Self(self.0)
+    }
+}
+
+#[cfg(feature = "full")]
+impl Drop for CoreFoundationHandle {
+    fn drop(&mut self) {
+        unsafe {
+            CFRelease(self.0.as_ptr());
+        }
+    }
+}
 
 #[cfg(feature = "async")]
 pub(crate) type SecurityTrustEvaluateAsyncCallback =
@@ -19,7 +62,7 @@ pub(crate) type SecurityTrustEvaluateAsyncCallback =
 pub(crate) type SecurityAuthorizationCopyRightsAsyncCallback = Option<
     unsafe extern "C" fn(
         refcon: *mut c_void,
-        json: *mut c_void,
+        value: *mut c_void,
         status: OsStatus,
         error: *mut c_void,
     ),
@@ -48,58 +91,58 @@ unsafe extern "C" {
 
     pub(crate) fn security_authentication_context_retain(context: *mut c_void) -> *mut c_void;
     pub(crate) fn security_keychain_set_item(
-        account: *const c_char,
-        service: *const c_char,
+        account: *const AbiBuffer,
+        service: *const AbiBuffer,
         data: *const c_void,
         data_length: isize,
-        options_json: *const c_char,
+        options_value: *const AbiValue,
         access_control: *mut c_void,
         authentication_context: *mut c_void,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_keychain_copy_item(
-        account: *const c_char,
-        service: *const c_char,
-        options_json: *const c_char,
+        account: *const AbiBuffer,
+        service: *const AbiBuffer,
+        options_value: *const AbiValue,
         authentication_context: *mut c_void,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_keychain_delete_item(
-        account: *const c_char,
-        service: *const c_char,
-        options_json: *const c_char,
+        account: *const AbiBuffer,
+        service: *const AbiBuffer,
+        options_value: *const AbiValue,
         authentication_context: *mut c_void,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_keychain_list_accounts(
-        service: *const c_char,
-        options_json: *const c_char,
+        service: *const AbiBuffer,
+        options_value: *const AbiValue,
         authentication_context: *mut c_void,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_internet_password_set_item(
-        server: *const c_char,
-        account: *const c_char,
+        server: *const AbiBuffer,
+        account: *const AbiBuffer,
         secret: *const c_void,
         secret_len: isize,
         failed_operation_out: *mut i32,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_internet_password_copy_item(
-        server: *const c_char,
+        server: *const AbiBuffer,
         account_out: *mut *mut c_void,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_internet_password_delete_item(
-        server: *const c_char,
+        server: *const AbiBuffer,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_access_control_get_type_id() -> usize;
     pub(crate) fn security_access_control_create(
-        protection: *const c_char,
+        protection: *const AbiBuffer,
         flags: u64,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
@@ -108,7 +151,7 @@ unsafe extern "C" {
     pub(crate) fn security_identity_import_pkcs12_first(
         data_pointer: *const c_void,
         data_length: isize,
-        password: *const c_char,
+        password: *const AbiBuffer,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -137,26 +180,26 @@ unsafe extern "C" {
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_identity_copy_preferred(
-        name: *const c_char,
-        key_usage_json: *const c_char,
-        valid_issuers_json: *const c_char,
+        name: *const AbiBuffer,
+        key_usage_value: *const AbiValue,
+        valid_issuers_value: *const AbiValue,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_identity_set_preferred(
         identity_pointer: *mut c_void,
-        name: *const c_char,
-        key_usage_json: *const c_char,
+        name: *const AbiBuffer,
+        key_usage_value: *const AbiValue,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_identity_copy_system_identity(
-        domain: *const c_char,
+        domain: *const AbiBuffer,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_identity_copy_actual_domain(pointer: *mut c_void) -> *mut c_void;
     pub(crate) fn security_identity_set_system_identity(
-        domain: *const c_char,
+        domain: *const AbiBuffer,
         identity_pointer: *mut c_void,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
@@ -170,7 +213,7 @@ unsafe extern "C" {
     pub(crate) fn security_certificate_import_item(
         data_pointer: *const c_void,
         data_length: isize,
-        file_name_or_extension: *const c_char,
+        file_name_or_extension: *const AbiBuffer,
         format: u32,
         item_type: u32,
         status_out: *mut OsStatus,
@@ -243,7 +286,7 @@ unsafe extern "C" {
     ) -> OsStatus;
     pub(crate) fn security_certificate_copy_values(
         pointer: *mut c_void,
-        keys_json: *const c_char,
+        keys_value: *const AbiValue,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -258,15 +301,15 @@ unsafe extern "C" {
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_certificate_copy_preferred(
-        name: *const c_char,
-        key_usage_json: *const c_char,
+        name: *const AbiBuffer,
+        key_usage_value: *const AbiValue,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_certificate_set_preferred(
         pointer: *mut c_void,
-        name: *const c_char,
-        key_usage_json: *const c_char,
+        name: *const AbiBuffer,
+        key_usage_value: *const AbiValue,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
 
@@ -306,7 +349,7 @@ unsafe extern "C" {
     pub(crate) fn security_private_key_import_item(
         data_pointer: *const c_void,
         data_length: isize,
-        file_name_or_extension: *const c_char,
+        file_name_or_extension: *const AbiBuffer,
         format: u32,
         item_type: u32,
         status_out: *mut OsStatus,
@@ -354,7 +397,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_policy_create_ssl(
         server: bool,
-        hostname: *const c_char,
+        hostname: *const AbiBuffer,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -364,8 +407,8 @@ unsafe extern "C" {
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_policy_create_with_properties(
-        identifier: *const c_char,
-        properties_json: *const c_char,
+        identifier: *const AbiBuffer,
+        properties_value: *const AbiValue,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -481,12 +524,12 @@ unsafe extern "C" {
     ) -> bool;
     pub(crate) fn security_trust_set_ocsp_response(
         pointer: *mut c_void,
-        responses_json: *const c_char,
+        responses_value: *const AbiValue,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_trust_set_signed_certificate_timestamps(
         pointer: *mut c_void,
-        timestamps_json: *const c_char,
+        timestamps_value: *const AbiValue,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_trust_set_options(
@@ -521,20 +564,20 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_authorization_copy_info(
         pointer: *mut c_void,
-        tag: *const c_char,
+        tag: *const AbiBuffer,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_authorization_copy_rights(
         pointer: *mut c_void,
-        rights_json: *const c_char,
+        rights_value: *const AbiValue,
         flags: u32,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_authorization_copy_rights_async(
         pointer: *mut c_void,
-        rights_json: *const c_char,
+        rights_value: *const AbiValue,
         flags: u32,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
@@ -542,7 +585,7 @@ unsafe extern "C" {
     #[cfg(feature = "async")]
     pub(crate) fn security_authorization_copy_rights_async_start(
         pointer: *mut c_void,
-        rights_json: *const c_char,
+        rights_value: *const AbiValue,
         flags: u32,
         refcon: *mut c_void,
         callback: SecurityAuthorizationCopyRightsAsyncCallback,
@@ -613,7 +656,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_task_copy_value_for_entitlement(
         pointer: *mut c_void,
-        entitlement: *const c_char,
+        entitlement: *const AbiBuffer,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -628,12 +671,12 @@ unsafe extern "C" {
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_requirement_create_with_string(
-        text: *const c_char,
+        text: *const AbiBuffer,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_requirement_create_with_string_and_errors(
-        text: *const c_char,
+        text: *const AbiBuffer,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -648,13 +691,13 @@ unsafe extern "C" {
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_static_code_create_with_path(
-        path: *const c_char,
+        path: *const AbiBuffer,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_static_code_create_with_path_and_attributes(
-        path: *const c_char,
-        attributes_json: *const c_char,
+        path: *const AbiBuffer,
+        attributes_value: *const AbiValue,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -677,14 +720,14 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_code_copy_guest_with_attributes(
         host_pointer: *mut c_void,
-        attributes_json: *const c_char,
+        attributes_value: *const AbiValue,
         flags: u32,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
     pub(crate) fn security_static_code_validate_file_resource(
         pointer: *mut c_void,
-        relative_path: *const c_char,
+        relative_path: *const AbiBuffer,
         data_pointer: *const c_void,
         data_length: isize,
         flags: u32,
@@ -701,7 +744,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_task_copy_values_for_entitlements(
         pointer: *mut c_void,
-        entitlements_json: *const c_char,
+        entitlements_value: *const AbiValue,
         status_out: *mut OsStatus,
         error_out: *mut *mut c_void,
     ) -> *mut c_void;
@@ -735,12 +778,12 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_secure_transport_set_protocol_min(
         pointer: *mut c_void,
-        protocol: *const c_char,
+        protocol: *const AbiBuffer,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_secure_transport_set_protocol_max(
         pointer: *mut c_void,
-        protocol: *const c_char,
+        protocol: *const AbiBuffer,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_secure_transport_copy_state(
@@ -859,7 +902,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub(crate) fn security_cms_encoder_set_signer_algorithm(
         pointer: *mut c_void,
-        algorithm: *const c_char,
+        algorithm: *const AbiBuffer,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_cms_encoder_add_signers(
@@ -896,7 +939,7 @@ unsafe extern "C" {
     ) -> bool;
     pub(crate) fn security_cms_encoder_set_encapsulated_content_type_oid(
         pointer: *mut c_void,
-        oid: *const c_char,
+        oid: *const AbiBuffer,
         error_out: *mut *mut c_void,
     ) -> OsStatus;
     pub(crate) fn security_cms_encoder_copy_encapsulated_content_type(
@@ -946,7 +989,7 @@ unsafe extern "C" {
         identity_count: isize,
         certificate_pointers: *const *mut c_void,
         certificate_count: isize,
-        econtent_type_oid: *const c_char,
+        econtent_type_oid: *const AbiBuffer,
         detached_content: bool,
         signed_attributes: u32,
         data_pointer: *const c_void,
@@ -969,7 +1012,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
 
     pub(crate) fn security_key_derivation_derive_pbkdf2_sha256(
-        password: *const c_char,
+        password: *const AbiBuffer,
         salt_pointer: *const c_void,
         salt_length: isize,
         rounds: isize,
@@ -1026,16 +1069,32 @@ impl Drop for Handle {
     }
 }
 
-pub(crate) fn cstring(value: &str) -> Result<CString> {
-    CString::new(value).map_err(|error| {
-        SecurityError::InvalidArgument(format!("string contains interior NUL byte: {error}"))
-    })
+pub(crate) struct BridgeString {
+    raw: AbiBuffer,
+    bytes: Vec<u8>,
 }
 
-pub(crate) fn json_cstring<T: Serialize>(value: &T) -> Result<CString> {
-    let json = serde_json::to_string(value)
-        .map_err(|error| SecurityError::Serialization(format!("bridge JSON failed: {error}")))?;
-    cstring(&json)
+impl BridgeString {
+    pub(crate) const fn as_ptr(&self) -> *const AbiBuffer {
+        &raw const self.raw
+    }
+
+    #[cfg(feature = "full")]
+    pub(crate) fn into_bytes_with_nul(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+pub(crate) fn cstring(value: &str) -> Result<BridgeString> {
+    let bytes = CString::new(value)
+        .map_err(|error| {
+            SecurityError::InvalidArgument(format!("string contains interior NUL byte: {error}"))
+        })?
+        .into_bytes_with_nul();
+    Ok(BridgeString {
+        raw: AbiBuffer::new(&bytes[..bytes.len() - 1]),
+        bytes,
+    })
 }
 
 pub(crate) fn len_to_isize(length: usize) -> Result<isize> {
@@ -1057,8 +1116,8 @@ pub(crate) fn optional_data(raw: *mut c_void) -> Result<Option<Vec<u8>>> {
     read_data(&handle).map(Some)
 }
 
-pub(crate) fn optional_json<T: DeserializeOwned>(raw: *mut c_void) -> Result<Option<T>> {
-    optional_string(raw)?.map_or(Ok(None), |json| parse_json(&json).map(Some))
+pub(crate) fn optional_value(raw: *mut c_void) -> Result<Option<Value>> {
+    Handle::from_raw(raw).map_or(Ok(None), |handle| read_value(&handle).map(Some))
 }
 
 pub(crate) fn required_string(
@@ -1081,14 +1140,14 @@ pub(crate) fn required_data(
     read_data(&handle)
 }
 
-pub(crate) fn required_json<T: DeserializeOwned>(
+pub(crate) fn required_value(
     operation: &'static str,
     raw: *mut c_void,
     status: OsStatus,
     error_raw: *mut c_void,
-) -> Result<T> {
-    let json = required_string(operation, raw, status, error_raw)?;
-    parse_json(&json)
+) -> Result<Value> {
+    let handle = required_handle(operation, raw, status, error_raw)?;
+    read_value(&handle)
 }
 
 #[cfg(feature = "full")]
@@ -1164,11 +1223,6 @@ pub(crate) fn status_error(
 
 pub(crate) fn handle_pointer_array(handles: &[&Handle]) -> Vec<*mut c_void> {
     handles.iter().map(|handle| handle.as_ptr()).collect()
-}
-
-fn parse_json<T: DeserializeOwned>(json: &str) -> Result<T> {
-    serde_json::from_str(json)
-        .map_err(|error| SecurityError::Serialization(format!("invalid bridge JSON: {error}")))
 }
 
 pub(crate) fn read_string(handle: &Handle) -> Result<String> {

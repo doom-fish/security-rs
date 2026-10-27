@@ -1,6 +1,7 @@
 import CoreFoundation
 import Foundation
 import Security
+import SecurityBridgeABI
 
 private final class SecureTransportRecord {
     let context: SSLContext
@@ -111,13 +112,13 @@ public func securitySecureTransportCreateServer(
 @_cdecl("security_secure_transport_set_protocol_min")
 public func securitySecureTransportSetProtocolMin(
     _ recordPointer: UnsafeMutableRawPointer?,
-    _ protocolPointer: UnsafePointer<CChar>?,
+    _ protocolPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
     guard let record = unbox(recordPointer, as: SecureTransportRecord.self),
-          let name = stringFromCString(protocolPointer),
+          let name = stringFromBuffer(protocolPointer),
           let value = protocolFromName(name)
     else {
         setError(errorOut, "valid secure transport handle and protocol name are required")
@@ -136,13 +137,13 @@ public func securitySecureTransportSetProtocolMin(
 @_cdecl("security_secure_transport_set_protocol_max")
 public func securitySecureTransportSetProtocolMax(
     _ recordPointer: UnsafeMutableRawPointer?,
-    _ protocolPointer: UnsafePointer<CChar>?,
+    _ protocolPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
     guard let record = unbox(recordPointer, as: SecureTransportRecord.self),
-          let name = stringFromCString(protocolPointer),
+          let name = stringFromBuffer(protocolPointer),
           let value = protocolFromName(name)
     else {
         setError(errorOut, "valid secure transport handle and protocol name are required")
@@ -181,7 +182,7 @@ public func securitySecureTransportCopyState(
         return nil
     }
 
-    return jsonHandle([
+    return valueHandle([
         "side": record.side,
         "sessionState": sessionStateName(sessionState),
         "minimumProtocol": record.minProtocol ?? "default",

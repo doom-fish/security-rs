@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import Security
+import SecurityBridgeABI
 
 final class Box<T> {
     let value: T
@@ -116,12 +117,16 @@ func statusMessage(_ status: OSStatus) -> String {
     return "OSStatus \(status)"
 }
 
-func stringFromCString(_ pointer: UnsafePointer<CChar>?) -> String? {
-    guard let pointer else {
+func stringFromBuffer(_ pointer: UnsafePointer<SecurityBridgeBuffer>?) -> String? {
+    guard let buffer = pointer?.pointee,
+          let length = Int(exactly: buffer.length),
+          length >= 0,
+          length == 0 || buffer.data != nil
+    else {
         return nil
     }
 
-    return String(cString: pointer)
+    return String(bytes: UnsafeBufferPointer(start: buffer.data, count: length), encoding: .utf8)
 }
 
 func dataFromPointer(_ bytes: UnsafeRawPointer?, length: Int) -> Data? {
@@ -132,21 +137,7 @@ func dataFromPointer(_ bytes: UnsafeRawPointer?, length: Int) -> Data? {
     return Data(bytes: bytes, count: length)
 }
 
-func jsonObject(fromCString pointer: UnsafePointer<CChar>?) -> Any? {
-    guard let json = stringFromCString(pointer),
-          let data = json.data(using: .utf8)
-    else {
-        return nil
-    }
-
-    return try? JSONSerialization.jsonObject(with: data)
-}
-
-func jsonStringArray(fromCString pointer: UnsafePointer<CChar>?) -> [String]? {
-    jsonObject(fromCString: pointer) as? [String]
-}
-
-func jsonData(fromJSONObject object: Any?) -> Data? {
+func valueData(from object: Any?) -> Data? {
     switch object {
     case let data as Data:
         return data
@@ -155,46 +146,9 @@ func jsonData(fromJSONObject object: Any?) -> Data? {
     case let values as [NSNumber]:
         let bytes = values.compactMap { UInt8(exactly: $0) }
         return bytes.count == values.count ? Data(bytes) : nil
-    case let base64 as String:
-        return Data(base64Encoded: base64)
     default:
         return nil
     }
-}
-
-func jsonDataArray(fromCString pointer: UnsafePointer<CChar>?) -> [Data]? {
-    guard let values = jsonObject(fromCString: pointer) as? [Any] else {
-        return nil
-    }
-    return values.compactMap(jsonData(fromJSONObject:))
-}
-
-func keyUsageArray(fromCString pointer: UnsafePointer<CChar>?) -> [CFString]? {
-    guard let keyUsageNames = jsonStringArray(fromCString: pointer) else {
-        return nil
-    }
-
-    let usages = keyUsageNames.compactMap { keyUsageName -> CFString? in
-        switch keyUsageName {
-        case "can_encrypt":
-            return kSecAttrCanEncrypt
-        case "can_decrypt":
-            return kSecAttrCanDecrypt
-        case "can_derive":
-            return kSecAttrCanDerive
-        case "can_sign":
-            return kSecAttrCanSign
-        case "can_verify":
-            return kSecAttrCanVerify
-        case "can_wrap":
-            return kSecAttrCanWrap
-        case "can_unwrap":
-            return kSecAttrCanUnwrap
-        default:
-            return nil
-        }
-    }
-    return usages.count == keyUsageNames.count ? usages : nil
 }
 
 func handleArray<T>(_ pointer: UnsafePointer<UnsafeMutableRawPointer?>?, count: Int, as type: T.Type) -> [T] {
@@ -216,53 +170,7 @@ func requirementString(_ requirement: SecRequirement) -> String {
     return requirementText as String
 }
 
-func jsonValue(_ value: Any) -> Any {
-    switch value {
-    case is NSNull:
-        return NSNull()
-    case let value as String:
-        return value
-    case let value as NSString:
-        return value as String
-    case let value as NSNumber:
-        if CFGetTypeID(value) == CFBooleanGetTypeID() {
-            return value.boolValue
-        }
-        let doubleValue = value.doubleValue
-        let intValue = value.int64Value
-        if Double(intValue) == doubleValue {
-            return intValue
-        }
-        return doubleValue
-    case let value as Data:
-        return [
-            "_type": "data",
-            "base64": value.base64EncodedString(),
-        ]
-    case let value as Date:
-        return [
-            "_type": "date",
-            "unix": value.timeIntervalSince1970,
-        ]
-    case let value as URL:
-        return [
-            "_type": "url",
-            "value": value.absoluteString,
-        ]
-    case let value as [Any]:
-        return value.map(jsonValue)
-    case let value as NSDictionary:
-        var result: [String: Any] = [:]
-        for case let (key as AnyHashable, item) in value {
-            result[String(describing: key)] = jsonValue(item)
-        }
-        return result
-    default:
-        return securityObjectJSON(value as AnyObject) ?? String(describing: value)
-    }
-}
-
-private func securityObjectJSON(_ object: AnyObject) -> Any? {
+func securityObjectValue(_ object: AnyObject) -> Any? {
     switch CFGetTypeID(object) {
     case SecRequirementGetTypeID():
         return [
@@ -283,7 +191,7 @@ private func securityObjectJSON(_ object: AnyObject) -> Any? {
         ]
     case SecPolicyGetTypeID():
         if let properties = SecPolicyCopyProperties(unsafeDowncast(object, to: SecPolicy.self)) {
-            return jsonValue(properties)
+            return properties
         }
         return [
             "_type": "policy",
@@ -307,18 +215,6 @@ private func securityObjectJSON(_ object: AnyObject) -> Any? {
     default:
         return nil
     }
-}
-
-func jsonHandle(_ value: Any) -> UnsafeMutableRawPointer? {
-    let json = jsonValue(value)
-    guard JSONSerialization.isValidJSONObject(json),
-          let data = try? JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]),
-          let string = String(data: data, encoding: .utf8)
-    else {
-        return nil
-    }
-
-    return retain(string)
 }
 
 func stringHandle(_ value: String?) -> UnsafeMutableRawPointer? {
@@ -441,5 +337,5 @@ public func securityKeyCopyAttributes(
         return nil
     }
 
-    return jsonHandle(attributes)
+    return valueHandle(attributes)
 }

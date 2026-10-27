@@ -1,13 +1,47 @@
 use core::fmt;
 
-use zeroize::Zeroizing;
+use std::ops::{Deref, DerefMut};
+use std::sync::atomic::{compiler_fence, Ordering};
 
 use crate::error::{Result, SecurityError};
 
-pub struct SecretBytes(Zeroizing<Vec<u8>>);
+pub(crate) struct Zeroizing(Vec<u8>);
+
+impl Zeroizing {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+}
+
+impl Deref for Zeroizing {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Zeroizing {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Drop for Zeroizing {
+    fn drop(&mut self) {
+        for index in 0..self.0.capacity() {
+            unsafe {
+                self.0.as_mut_ptr().add(index).write_volatile(0);
+            }
+        }
+        compiler_fence(Ordering::SeqCst);
+    }
+}
+
+pub struct SecretBytes(Zeroizing);
 
 impl SecretBytes {
-    pub(crate) fn new(bytes: Zeroizing<Vec<u8>>) -> Self {
+    pub(crate) fn new(bytes: Zeroizing) -> Self {
         Self(bytes)
     }
 

@@ -1,7 +1,6 @@
-use serde::Deserialize;
-
 use crate::bridge;
-use crate::error::Result;
+use crate::error::{Result, SecurityError};
+use crate::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Mirrors Secure Transport protocol-version selectors.
@@ -37,18 +36,15 @@ impl ProtocolVersion {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// Mirrors state queried from a Secure Transport session.
 pub struct SecureTransportState {
     /// Mirrors a field returned by Secure Transport session queries.
     pub side: String,
-    #[serde(rename = "sessionState")]
     /// Mirrors a field returned by Secure Transport session queries.
     pub session_state: String,
-    #[serde(rename = "minimumProtocol")]
     /// Mirrors a field returned by Secure Transport session queries.
     pub minimum_protocol: String,
-    #[serde(rename = "maximumProtocol")]
     /// Mirrors a field returned by Secure Transport session queries.
     pub maximum_protocol: String,
 }
@@ -109,7 +105,24 @@ impl SecureTransportContext {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_secure_transport_copy_state", raw, status, error)
+        let value =
+            bridge::required_value("security_secure_transport_copy_state", raw, status, error)?;
+        let field = |key| {
+            value
+                .get(key)
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or(SecurityError::UnexpectedType {
+                    operation: "security_secure_transport_copy_state",
+                    expected: "state string",
+                })
+        };
+        Ok(SecureTransportState {
+            side: field("side")?,
+            session_state: field("sessionState")?,
+            minimum_protocol: field("minimumProtocol")?,
+            maximum_protocol: field("maximumProtocol")?,
+        })
     }
 }
 

@@ -48,7 +48,7 @@ fn creates_policy_with_properties() -> security::Result<()> {
     assert_eq!(
         properties
             .get("SecPolicyName")
-            .and_then(serde_json::Value::as_str),
+            .and_then(security::Value::as_str),
         Some("localhost")
     );
     Ok(())
@@ -76,7 +76,7 @@ fn ssl_policy_without_hostname_must_be_requested_explicitly() -> security::Resul
         Policy::ssl(true, "localhost")?
             .properties()?
             .get("SecPolicyName")
-            .and_then(serde_json::Value::as_str),
+            .and_then(security::Value::as_str),
         Some("localhost")
     );
     tls_trust(any_hostname)?.evaluate()?;

@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SecurityBridgeABI
 
 private func keyTypeConstant(_ rawValue: UInt32) -> CFString? {
     switch rawValue {
@@ -174,7 +175,7 @@ public func securityPrivateKeyCreateWithData(
 public func securityPrivateKeyImportItem(
     _ dataPointer: UnsafeRawPointer?,
     _ dataLength: Int,
-    _ fileNamePointer: UnsafePointer<CChar>?,
+    _ fileNamePointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ formatRawValue: UInt32,
     _ itemTypeRawValue: UInt32,
     _ statusOut: UnsafeMutablePointer<Int32>?,
@@ -192,7 +193,7 @@ public func securityPrivateKeyImportItem(
         return nil
     }
 
-    let fileName = stringFromCString(fileNamePointer) as CFString?
+    let fileName = stringFromBuffer(fileNamePointer) as CFString?
     var items: CFArray?
     let status = SecItemImport(
         importedData as CFData,

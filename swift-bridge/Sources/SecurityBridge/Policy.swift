@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SecurityBridgeABI
 
 private func policyIdentifier(_ name: String) -> CFTypeRef? {
     switch name {
@@ -66,10 +67,8 @@ private func policyIdentifier(_ name: String) -> CFTypeRef? {
     }
 }
 
-private func policyProperties(jsonString: String) -> [CFString: Any]? {
-    guard let data = jsonString.data(using: .utf8),
-          let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-    else {
+private func policyProperties(_ pointer: UnsafePointer<SecurityBridgeValue>) -> [CFString: Any]? {
+    guard let object = valueObject(from: pointer) as? [String: Any] else {
         return nil
     }
 
@@ -113,13 +112,13 @@ public func securityPolicyCreateBasicX509(
 @_cdecl("security_policy_create_ssl")
 public func securityPolicyCreateSSL(
     _ server: Bool,
-    _ hostnamePointer: UnsafePointer<CChar>?,
+    _ hostnamePointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
-    let hostname = stringFromCString(hostnamePointer) as CFString?
+    let hostname = stringFromBuffer(hostnamePointer) as CFString?
     return retain(SecPolicyCreateSSL(server, hostname))
 }
 
@@ -141,15 +140,15 @@ public func securityPolicyCreateRevocation(
 
 @_cdecl("security_policy_create_with_properties")
 public func securityPolicyCreateWithProperties(
-    _ identifierPointer: UnsafePointer<CChar>?,
-    _ propertiesPointer: UnsafePointer<CChar>?,
+    _ identifierPointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ propertiesPointer: UnsafePointer<SecurityBridgeValue>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let identifierName = stringFromCString(identifierPointer),
+    guard let identifierName = stringFromBuffer(identifierPointer),
           let identifier = policyIdentifier(identifierName)
     else {
         setStatus(statusOut, errSecParam)
@@ -158,10 +157,10 @@ public func securityPolicyCreateWithProperties(
     }
 
     let properties: [CFString: Any]?
-    if let propertiesString = stringFromCString(propertiesPointer) {
-        guard let decodedProperties = policyProperties(jsonString: propertiesString) else {
+    if let propertiesPointer {
+        guard let decodedProperties = policyProperties(propertiesPointer) else {
             setStatus(statusOut, errSecParam)
-            setError(errorOut, "policy properties JSON was invalid")
+            setError(errorOut, "policy properties binary value was invalid")
             return nil
         }
         properties = decodedProperties
@@ -194,8 +193,8 @@ public func securityPolicyCopyProperties(
     }
 
     guard let properties = SecPolicyCopyProperties(policy) else {
-        return jsonHandle([:])
+        return valueHandle([:])
     }
 
-    return jsonHandle(properties)
+    return valueHandle(properties)
 }

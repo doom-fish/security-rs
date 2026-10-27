@@ -15,7 +15,13 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "SecurityBridgeABI",
+            path: "Sources/SecurityBridgeABI",
+            publicHeadersPath: "include"
+        ),
+        .target(
             name: "SecurityBridge",
+            dependencies: ["SecurityBridgeABI"],
             path: "Sources/SecurityBridge"
         )
     ]

@@ -1,8 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-#[cfg(feature = "full")]
-use base64::Engine;
-use serde_json::Value;
+use crate::Value;
 
 use crate::bridge::{self, Handle};
 use crate::error::{Result, SecurityError};
@@ -52,7 +50,7 @@ impl PublicKey {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_key_copy_attributes", raw, status, error)
+        bridge::required_value("security_key_copy_attributes", raw, status, error)
     }
 
     /// Wraps the corresponding public `SecKeyRef` operation.
@@ -184,7 +182,7 @@ impl Certificate {
                 bridge::len_to_isize(data.len())?,
                 file_name_or_extension
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::BridgeString::as_ptr),
                 format as u32,
                 item_type as u32,
                 &raw mut status,
@@ -221,11 +219,7 @@ impl Certificate {
             .lines()
             .filter(|line| !line.starts_with("-----"))
             .collect::<String>();
-        let der = base64::engine::general_purpose::STANDARD
-            .decode(base64)
-            .map_err(|error| {
-                SecurityError::InvalidArgument(format!("invalid PEM body: {error}"))
-            })?;
+        let der = crate::encoding::decode_base64(base64.as_bytes())?;
         Self::from_der(&der)
     }
 
@@ -265,12 +259,13 @@ impl Certificate {
                 &raw mut error,
             )
         };
-        bridge::required_json(
+        bridge::required_value(
             "security_certificate_copy_email_addresses",
             raw,
             status,
             error,
-        )
+        )?
+        .into_strings("security_certificate_copy_email_addresses")
     }
 
     /// Wraps the corresponding `SecCertificateRef` operation.
@@ -344,7 +339,7 @@ impl Certificate {
         if raw.is_null() && status == 0 {
             return Ok(None);
         }
-        let value: Value = bridge::required_json(
+        let value: Value = bridge::required_value(
             "security_certificate_copy_not_valid_before",
             raw,
             status,
@@ -367,7 +362,7 @@ impl Certificate {
         if raw.is_null() && status == 0 {
             return Ok(None);
         }
-        let value: Value = bridge::required_json(
+        let value: Value = bridge::required_value(
             "security_certificate_copy_not_valid_after",
             raw,
             status,
@@ -417,7 +412,7 @@ impl Certificate {
     /// Wraps the corresponding `SecCertificateRef` operation.
     pub fn values(&self, keys: &[&str]) -> Result<Value> {
         let keys = (!keys.is_empty())
-            .then(|| bridge::json_cstring(&keys))
+            .then(|| bridge::InputValue::strings(keys))
             .transpose()?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -425,12 +420,12 @@ impl Certificate {
             bridge::security_certificate_copy_values(
                 self.handle.as_ptr(),
                 keys.as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::InputValue::as_ptr),
                 &raw mut status,
                 &raw mut error,
             )
         };
-        bridge::required_json("security_certificate_copy_values", raw, status, error)
+        bridge::required_value("security_certificate_copy_values", raw, status, error)
     }
 
     /// Wraps the corresponding `SecCertificateRef` operation.
@@ -475,7 +470,7 @@ impl Certificate {
     pub fn preferred(name: &str, key_usage: &[&str]) -> Result<Option<Self>> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())
-            .then(|| bridge::json_cstring(&key_usage))
+            .then(|| bridge::InputValue::strings(key_usage))
             .transpose()?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -484,7 +479,7 @@ impl Certificate {
                 name.as_ptr(),
                 key_usage
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::InputValue::as_ptr),
                 &raw mut status,
                 &raw mut error,
             )
@@ -502,7 +497,7 @@ impl Certificate {
     pub fn set_preferred(certificate: Option<&Self>, name: &str, key_usage: &[&str]) -> Result<()> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())
-            .then(|| bridge::json_cstring(&key_usage))
+            .then(|| bridge::InputValue::strings(key_usage))
             .transpose()?;
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -511,7 +506,7 @@ impl Certificate {
                 name.as_ptr(),
                 key_usage
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::InputValue::as_ptr),
                 &raw mut error,
             )
         };
@@ -520,14 +515,12 @@ impl Certificate {
 }
 
 fn decode_date(value: Value) -> Result<SystemTime> {
-    let unix =
-        value
-            .get("unix")
-            .and_then(Value::as_f64)
-            .ok_or_else(|| SecurityError::UnexpectedType {
-                operation: "security_certificate_copy_not_valid_date",
-                expected: "date JSON object",
-            })?;
+    let unix = value
+        .as_date()
+        .ok_or_else(|| SecurityError::UnexpectedType {
+            operation: "security_certificate_copy_not_valid_date",
+            expected: "date",
+        })?;
     let out_of_range =
         || SecurityError::InvalidArgument("certificate date is out of range".to_owned());
     let duration = Duration::try_from_secs_f64(unix.abs()).map_err(|_| out_of_range())?;

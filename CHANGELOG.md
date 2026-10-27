@@ -5,6 +5,23 @@ All notable changes to `security-rs` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-27
+
+### Changed
+
+- The Swift bridge uses shared C ABI records instead of a text format.
+- **Breaking:** public dictionary APIs use `security::Value` instead of a serialization value.
+- Data and dates use typed variants instead of dictionary wrappers.
+- Flag types keep their constants and bit operations without an external crate.
+- Secret buffers use volatile writes and a compiler fence before deallocation.
+- PEM base64 and asynchronous completion use code in this crate.
+- **Breaking:** raw Core Foundation types and `SecurityError::CoreFoundation` use types in this crate, not `apple-cf`.
+- Public-key import and signature verification keep their existing arguments.
+
+### Removed
+
+- All Rust runtime, build, and development dependencies.
+
 ## [0.7.0] - 2026-10-26
 
 ### Added

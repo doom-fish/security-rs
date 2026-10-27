@@ -1,9 +1,8 @@
 //! Additional raw `SecKey.h` declarations.
 
-use libc::size_t;
-
 use super::{
-    Boolean, CFDataRef, CFDictionaryRef, CFErrorRef, CFIndex, CFStringRef, CFTypeID, SecKeyRef,
+    size_t, Boolean, CFDataRef, CFDictionaryRef, CFErrorRef, CFIndex, CFStringRef, CFTypeID,
+    SecKeyRef,
 };
 
 pub type SecKeyAlgorithm = CFStringRef;

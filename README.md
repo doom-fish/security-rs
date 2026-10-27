@@ -6,7 +6,7 @@ Safe Rust bindings for Apple's [Security](https://developer.apple.com/documentat
 
 ```toml
 [dependencies]
-security-rs = "0.7"
+security-rs = "0.8"
 ```
 
 Requires macOS 12 or later and Rust 1.82 or later. Some APIs need a newer macOS and return an
@@ -16,6 +16,8 @@ need macOS 15, and the `AppleSslServer`/`AppleSslClient`-style policy identifier
 ## Highlights
 
 - Swift bridge over `Security.framework` with retained opaque handles and ergonomic Rust wrappers.
+- No Rust dependencies, including development and build dependencies.
+- Structured bridge values use a shared C ABI, with no text format.
 - Wrappers for the 158 top-level functions listed as verified in [`COVERAGE_AUDIT.md`](COVERAGE_AUDIT.md). That audit counts a self-selected set of 321 functions from 25 headers (163 marked exempt), not the whole framework or its constants.
 - Raw C FFI preserved behind the `raw-ffi` Cargo feature, now exhaustively covering the non-deprecated macOS `SecAccessControl` / `SecItem` / `SecKey` / `SecPolicy` headers.
 - Internet password items with server-based account updates, binary secrets, and exact `OSStatus` errors.
@@ -90,11 +92,31 @@ The caller selects the hash and checks the signature length.
 These APIs support macOS 12.
 
 For public-key verification alone, set `default-features = false`.
-This mode supplies `PublicKey`, `Certificate`, `PrivateKey`, the algorithm types, and error types without `base64` or `zeroize`.
+This mode supplies `PublicKey`, `Certificate`, `PrivateKey`, the algorithm types, and error types.
 `Certificate::from_pem` and the other framework modules require the default `full` feature.
-Version 0.7 changes `default-features = false` to this reduced API.
-The default API remains unchanged.
+Both feature sets have no Rust dependencies.
 On other targets, the library has no API and the build script does not invoke Swift.
+
+## Version 0.8
+
+The bridge exchanges structured values through `SecurityBridgeABI.h`, which Swift imports.
+Rust maps each configuration field to the shared `#[repr(C)]` records.
+Strings, data, arrays, and dictionary keys use a pointer and a length.
+Rust owns input buffers until the call returns.
+Swift copies inputs before an asynchronous request starts.
+Swift owns each result handle and its child buffers until Rust releases the handle with `security_release_handle`.
+
+APIs that previously used a serialization value now use `security::Value`.
+This enum preserves signed integers, unsigned integers, real numbers, strings, data, dates, URLs, arrays, and dictionaries.
+Data uses `Value::Data`, not a base64 object.
+Dates use `Value::Date` with Unix seconds, not a dictionary.
+Policy configuration and the public-key signature APIs keep their existing Rust arguments.
+
+The flag types use native integer fields and preserve their constants, bit operations, and checked constructors.
+The crate decodes PEM base64 itself.
+Secret buffers use volatile writes and a compiler fence before deallocation.
+The `async` feature uses a standard-library future and waker.
+Raw Core Foundation declarations and `security::error::NullPointerError` now belong to this crate, not `apple-cf`.
 
 ## Keychain items
 

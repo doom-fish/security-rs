@@ -1,6 +1,4 @@
-use base64::Engine;
-use bitflags::bitflags;
-use serde_json::Value;
+use crate::Value;
 use std::collections::BTreeMap;
 use std::ffi::c_void;
 use std::path::{Path, PathBuf};
@@ -8,57 +6,297 @@ use std::path::{Path, PathBuf};
 use crate::bridge;
 use crate::error::{Result, SecurityError};
 
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    /// Mirrors `SecCSFlags`.
-    pub struct CodeSigningFlags: u32 {
-        /// Mirrors a `SecCSFlags` bit.
-        const CHECK_ALL_ARCHITECTURES = 1 << 0;
-        /// Mirrors a `SecCSFlags` bit.
-        const DO_NOT_VALIDATE_EXECUTABLE = 1 << 1;
-        /// Mirrors a `SecCSFlags` bit.
-        const DO_NOT_VALIDATE_RESOURCES = 1 << 2;
-        /// Mirrors a `SecCSFlags` bit.
-        const BASIC_VALIDATE_ONLY = Self::DO_NOT_VALIDATE_EXECUTABLE.bits() | Self::DO_NOT_VALIDATE_RESOURCES.bits();
-        /// Mirrors a `SecCSFlags` bit.
-        const CHECK_NESTED_CODE = 1 << 3;
-        /// Mirrors a `SecCSFlags` bit.
-        const STRICT_VALIDATE = 1 << 4;
-        /// Mirrors a `SecCSFlags` bit.
-        const FULL_REPORT = 1 << 5;
-        /// Mirrors a `SecCSFlags` bit.
-        const CHECK_GATEKEEPER_ARCHITECTURES = (1 << 6) | Self::CHECK_ALL_ARCHITECTURES.bits();
-        /// Mirrors a `SecCSFlags` bit.
-        const RESTRICT_SYMLINKS = 1 << 7;
-        /// Mirrors a `SecCSFlags` bit.
-        const RESTRICT_TO_APP_LIKE = 1 << 8;
-        /// Mirrors a `SecCSFlags` bit.
-        const RESTRICT_SIDEBAND_DATA = 1 << 9;
-        /// Mirrors a `SecCSFlags` bit.
-        const USE_SOFTWARE_SIGNING_CERT = 1 << 10;
-        /// Mirrors a `SecCSFlags` bit.
-        const VALIDATE_PEH = 1 << 11;
-        /// Mirrors a `SecCSFlags` bit.
-        const SINGLE_THREADED = 1 << 12;
-        /// Mirrors a `SecCSFlags` bit.
-        const ALLOW_NETWORK_ACCESS = 1 << 16;
-        /// Mirrors a `SecCSFlags` bit.
-        const FAST_EXECUTABLE_VALIDATION = 1 << 17;
-        const CHECK_TRUSTED_ANCHORS = 1 << 27;
-        const NO_NETWORK_ACCESS = 1 << 29;
-        const ENFORCE_REVOCATION_CHECKS = 1 << 30;
-        const CONSIDER_EXPIRATION = 1 << 31;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+#[must_use]
+/// Mirrors `SecCSFlags`.
+pub struct CodeSigningFlags(u32);
+
+impl CodeSigningFlags {
+    /// Mirrors a `SecCSFlags` bit.
+    pub const CHECK_ALL_ARCHITECTURES: Self = Self(1 << 0);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const DO_NOT_VALIDATE_EXECUTABLE: Self = Self(1 << 1);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const DO_NOT_VALIDATE_RESOURCES: Self = Self(1 << 2);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const BASIC_VALIDATE_ONLY: Self =
+        Self(Self::DO_NOT_VALIDATE_EXECUTABLE.0 | Self::DO_NOT_VALIDATE_RESOURCES.0);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const CHECK_NESTED_CODE: Self = Self(1 << 3);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const STRICT_VALIDATE: Self = Self(1 << 4);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const FULL_REPORT: Self = Self(1 << 5);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const CHECK_GATEKEEPER_ARCHITECTURES: Self =
+        Self((1 << 6) | Self::CHECK_ALL_ARCHITECTURES.0);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const RESTRICT_SYMLINKS: Self = Self(1 << 7);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const RESTRICT_TO_APP_LIKE: Self = Self(1 << 8);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const RESTRICT_SIDEBAND_DATA: Self = Self(1 << 9);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const USE_SOFTWARE_SIGNING_CERT: Self = Self(1 << 10);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const VALIDATE_PEH: Self = Self(1 << 11);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const SINGLE_THREADED: Self = Self(1 << 12);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const ALLOW_NETWORK_ACCESS: Self = Self(1 << 16);
+    /// Mirrors a `SecCSFlags` bit.
+    pub const FAST_EXECUTABLE_VALIDATION: Self = Self(1 << 17);
+    pub const CHECK_TRUSTED_ANCHORS: Self = Self(1 << 27);
+    pub const NO_NETWORK_ACCESS: Self = Self(1 << 29);
+    pub const ENFORCE_REVOCATION_CHECKS: Self = Self(1 << 30);
+    pub const CONSIDER_EXPIRATION: Self = Self(1 << 31);
+
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+    pub const fn all() -> Self {
+        Self(0xe803_1fff)
+    }
+    pub const fn bits(self) -> u32 {
+        self.0
+    }
+    pub const fn from_bits(bits: u32) -> Option<Self> {
+        if bits & !Self::all().0 == 0 {
+            Some(Self(bits))
+        } else {
+            None
+        }
+    }
+    pub const fn from_bits_retain(bits: u32) -> Self {
+        Self(bits)
+    }
+    pub const fn from_bits_truncate(bits: u32) -> Self {
+        Self(bits & Self::all().0)
+    }
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+    pub const fn is_all(self) -> bool {
+        self.0 & Self::all().0 == Self::all().0
+    }
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+    pub const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+    pub const fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+    pub const fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+    pub const fn symmetric_difference(self, other: Self) -> Self {
+        Self(self.0 ^ other.0)
+    }
+    pub const fn complement(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+    pub fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+    pub fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
+    }
+    pub fn toggle(&mut self, other: Self) {
+        self.0 ^= other.0;
+    }
+    pub fn set(&mut self, other: Self, value: bool) {
+        if value {
+            self.0 |= other.0;
+        } else {
+            self.0 &= !other.0;
+        }
     }
 }
 
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct CodeStatus: u32 {
-        const VALID = 0x0000_0001;
-        const HARD = 0x0000_0100;
-        const KILL = 0x0000_0200;
-        const PLATFORM = 0x0400_0000;
-        const DEBUGGED = 0x1000_0000;
+impl std::ops::BitOr for CodeSigningFlags {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+impl std::ops::BitAnd for CodeSigningFlags {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+impl std::ops::BitXor for CodeSigningFlags {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self {
+        Self(self.0 ^ rhs.0)
+    }
+}
+impl std::ops::Sub for CodeSigningFlags {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 & !rhs.0)
+    }
+}
+impl std::ops::Not for CodeSigningFlags {
+    type Output = Self;
+    fn not(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+}
+impl std::ops::BitOrAssign for CodeSigningFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+impl std::ops::BitAndAssign for CodeSigningFlags {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+impl std::ops::BitXorAssign for CodeSigningFlags {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 ^= rhs.0;
+    }
+}
+impl std::ops::SubAssign for CodeSigningFlags {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 &= !rhs.0;
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+#[must_use]
+pub struct CodeStatus(u32);
+
+impl CodeStatus {
+    pub const VALID: Self = Self(0x0000_0001);
+    pub const HARD: Self = Self(0x0000_0100);
+    pub const KILL: Self = Self(0x0000_0200);
+    pub const PLATFORM: Self = Self(0x0400_0000);
+    pub const DEBUGGED: Self = Self(0x1000_0000);
+
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+    pub const fn all() -> Self {
+        Self(0x1400_0301)
+    }
+    pub const fn bits(self) -> u32 {
+        self.0
+    }
+    pub const fn from_bits(bits: u32) -> Option<Self> {
+        if bits & !Self::all().0 == 0 {
+            Some(Self(bits))
+        } else {
+            None
+        }
+    }
+    pub const fn from_bits_retain(bits: u32) -> Self {
+        Self(bits)
+    }
+    pub const fn from_bits_truncate(bits: u32) -> Self {
+        Self(bits & Self::all().0)
+    }
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+    pub const fn is_all(self) -> bool {
+        self.0 & Self::all().0 == Self::all().0
+    }
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+    pub const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+    pub const fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+    pub const fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+    pub const fn symmetric_difference(self, other: Self) -> Self {
+        Self(self.0 ^ other.0)
+    }
+    pub const fn complement(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+    pub fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+    pub fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
+    }
+    pub fn toggle(&mut self, other: Self) {
+        self.0 ^= other.0;
+    }
+    pub fn set(&mut self, other: Self, value: bool) {
+        if value {
+            self.0 |= other.0;
+        } else {
+            self.0 &= !other.0;
+        }
+    }
+}
+
+impl std::ops::BitOr for CodeStatus {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+impl std::ops::BitAnd for CodeStatus {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+impl std::ops::BitXor for CodeStatus {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self {
+        Self(self.0 ^ rhs.0)
+    }
+}
+impl std::ops::Sub for CodeStatus {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 & !rhs.0)
+    }
+}
+impl std::ops::Not for CodeStatus {
+    type Output = Self;
+    fn not(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+}
+impl std::ops::BitOrAssign for CodeStatus {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+impl std::ops::BitAndAssign for CodeStatus {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+impl std::ops::BitXorAssign for CodeStatus {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 ^= rhs.0;
+    }
+}
+impl std::ops::SubAssign for CodeStatus {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 &= !rhs.0;
     }
 }
 
@@ -156,7 +394,7 @@ impl SigningInformation {
         self.status.map(CodeStatus::from_bits_retain)
     }
 
-    fn from_json(value: &Value) -> Self {
+    fn from_value(value: &Value) -> Self {
         let entitlements = find_object(
             value,
             &[
@@ -169,7 +407,7 @@ impl SigningInformation {
         Self {
             identifier: find_string(value, &["identifier", "Identifier"]),
             team_identifier: find_string(value, &["teamid", "TeamIdentifier", "teamIdentifier"]),
-            entitlements: entitlements.map(json_object_to_map).unwrap_or_default(),
+            entitlements: entitlements.map(signing_dictionary).unwrap_or_default(),
             sandboxed: matches!(
                 entitlements.and_then(|value| value.get("com.apple.security.app-sandbox")),
                 Some(Value::Bool(true))
@@ -218,7 +456,7 @@ impl Code {
         attributes: Option<&Value>,
         flags: CodeSigningFlags,
     ) -> Result<Self> {
-        let attributes = attributes.map(bridge::json_cstring).transpose()?;
+        let attributes = attributes.map(bridge::InputValue::new).transpose()?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
@@ -226,7 +464,7 @@ impl Code {
                 host.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
                 attributes
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::InputValue::as_ptr),
                 flags.bits(),
                 &raw mut status,
                 &raw mut error,
@@ -327,8 +565,8 @@ impl Code {
             )
         };
         let value: Value =
-            bridge::required_json("security_code_copy_signing_information", raw, status, error)?;
-        Ok(SigningInformation::from_json(&value))
+            bridge::required_value("security_code_copy_signing_information", raw, status, error)?;
+        Ok(SigningInformation::from_value(&value))
     }
 
     /// Wraps the corresponding `SecCodeRef` operation.
@@ -486,7 +724,7 @@ impl StaticCode {
     /// Wraps the corresponding `SecStaticCodeRef` operation.
     pub fn from_path_with_attributes(path: impl AsRef<Path>, attributes: &Value) -> Result<Self> {
         let path = bridge::cstring(&path.as_ref().to_string_lossy())?;
-        let attributes = bridge::json_cstring(attributes)?;
+        let attributes = bridge::InputValue::new(attributes)?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
@@ -631,13 +869,13 @@ impl StaticCode {
                 &raw mut error,
             )
         };
-        let value: Value = bridge::required_json(
+        let value: Value = bridge::required_value(
             "security_static_code_copy_signing_information",
             raw,
             status,
             error,
         )?;
-        Ok(SigningInformation::from_json(&value))
+        Ok(SigningInformation::from_value(&value))
     }
 
     /// Wraps the corresponding `SecStaticCodeRef` operation.
@@ -764,7 +1002,7 @@ impl Task {
         if raw.is_null() && status == 0 {
             return Ok(None);
         }
-        let value: Value = bridge::required_json(
+        let value: Value = bridge::required_value(
             "security_task_copy_value_for_entitlement",
             raw,
             status,
@@ -775,7 +1013,7 @@ impl Task {
 
     /// Wraps the corresponding `SecTaskRef` operation.
     pub fn entitlements(&self, entitlements: &[&str]) -> Result<Value> {
-        let entitlements = bridge::json_cstring(&entitlements)?;
+        let entitlements = bridge::InputValue::strings(entitlements)?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
@@ -786,7 +1024,7 @@ impl Task {
                 &raw mut error,
             )
         };
-        bridge::required_json(
+        bridge::required_value(
             "security_task_copy_values_for_entitlements",
             raw,
             status,
@@ -795,65 +1033,65 @@ impl Task {
     }
 }
 
-fn find_object<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a serde_json::Map<String, Value>> {
+fn find_object<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a BTreeMap<String, Value>> {
     keys.iter()
-        .find_map(|key| value.get(*key))
+        .find_map(|key| value.get(key))
         .and_then(Value::as_object)
 }
 
 fn find_string(value: &Value, keys: &[&str]) -> Option<String> {
     keys.iter()
-        .find_map(|key| value.get(*key))
+        .find_map(|key| value.get(key))
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
 }
 
 fn find_integer(value: &Value, keys: &[&str]) -> Option<i64> {
     keys.iter()
-        .find_map(|key| value.get(*key))
+        .find_map(|key| value.get(key))
         .and_then(Value::as_i64)
 }
 
-fn json_object_to_map(object: &serde_json::Map<String, Value>) -> BTreeMap<String, SigningValue> {
+fn signing_dictionary(object: &BTreeMap<String, Value>) -> BTreeMap<String, SigningValue> {
     object
         .iter()
         .map(|(key, value)| (key.clone(), signing_value(value)))
         .collect()
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::float_cmp
+)]
 fn signing_value(value: &Value) -> SigningValue {
     match value {
         Value::Bool(value) => SigningValue::Boolean(*value),
-        Value::Number(value) => value.as_i64().map_or_else(
-            || SigningValue::Unknown(value.to_string()),
+        Value::Integer(value) => SigningValue::Integer(*value),
+        Value::Unsigned(value) => i64::try_from(*value).map_or_else(
+            |_| SigningValue::Unknown(value.to_string()),
             SigningValue::Integer,
         ),
+        Value::Real(value) => {
+            let integer = *value as i64;
+            if *value < 9_223_372_036_854_775_808.0 && integer as f64 == *value {
+                SigningValue::Integer(integer)
+            } else {
+                SigningValue::Unknown(value.to_string())
+            }
+        }
+        Value::Date(value) => SigningValue::Dictionary(BTreeMap::from([
+            ("_type".to_owned(), SigningValue::String("date".to_owned())),
+            ("unix".to_owned(), signing_value(&Value::Real(*value))),
+        ])),
         Value::String(value) => SigningValue::String(value.clone()),
-        Value::Array(values) => {
-            if let Some(data) = data_from_wrapped_json(value) {
-                SigningValue::Data(data)
-            } else {
-                SigningValue::Array(values.iter().map(signing_value).collect())
-            }
-        }
-        Value::Object(object) => {
-            if let Some(data) = data_from_wrapped_json(value) {
-                SigningValue::Data(data)
-            } else {
-                SigningValue::Dictionary(json_object_to_map(object))
-            }
-        }
+        Value::Url(value) => SigningValue::Dictionary(BTreeMap::from([
+            ("_type".to_owned(), SigningValue::String("url".to_owned())),
+            ("value".to_owned(), SigningValue::String(value.clone())),
+        ])),
+        Value::Data(value) => SigningValue::Data(value.clone()),
+        Value::Array(values) => SigningValue::Array(values.iter().map(signing_value).collect()),
+        Value::Object(object) => SigningValue::Dictionary(signing_dictionary(object)),
         Value::Null => SigningValue::Unknown("null".to_owned()),
     }
-}
-
-fn data_from_wrapped_json(value: &Value) -> Option<Vec<u8>> {
-    let object = value.as_object()?;
-    if object.get("_type")?.as_str()? != "data" {
-        return None;
-    }
-    let base64 = object.get("base64")?.as_str()?;
-    base64::engine::general_purpose::STANDARD
-        .decode(base64)
-        .ok()
 }

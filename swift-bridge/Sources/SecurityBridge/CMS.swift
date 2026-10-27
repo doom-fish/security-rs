@@ -1,8 +1,9 @@
 import Foundation
 import Security
+import SecurityBridgeABI
 
 private func cmsDateHandle(_ absoluteTime: CFAbsoluteTime) -> UnsafeMutableRawPointer? {
-    jsonHandle(Date(timeIntervalSinceReferenceDate: absoluteTime))
+    valueHandle(Date(timeIntervalSinceReferenceDate: absoluteTime))
 }
 
 private func cmsPolicy(_ policyPointer: UnsafeMutableRawPointer?) -> CFTypeRef? {
@@ -319,13 +320,13 @@ public func securityCmsDecoderCopySignerStatus(
     if evaluateSecTrust {
         result["certVerifyResultCode"] = verifyResult
     }
-    guard let json = jsonHandle(result) else {
+    guard let value = valueHandle(result) else {
         setStatus(statusOut, errSecInternalComponent)
         setError(errorOut, "CMS signer status could not be encoded")
         return nil
     }
     trustOut?.pointee = retain(secTrust)
-    return json
+    return value
 }
 
 @_cdecl("security_cms_decoder_copy_all_certificates")
@@ -588,7 +589,7 @@ public func securityCmsDecoderCopySignerTimestampCertificates(
         setError(errorOut, "CMSDecoderCopySignerTimestampCertificates failed: \(statusMessage(status))")
         return nil
     }
-    return jsonHandle(certificates as Any? ?? [])
+    return valueHandle(certificates as Any? ?? [])
 }
 
 @_cdecl("security_cms_encoder_get_type_id")
@@ -617,13 +618,13 @@ public func securityCmsEncoderCreate(
 @_cdecl("security_cms_encoder_set_signer_algorithm")
 public func securityCmsEncoderSetSignerAlgorithm(
     _ pointer: UnsafeMutableRawPointer?,
-    _ algorithmPointer: UnsafePointer<CChar>?,
+    _ algorithmPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
     guard let encoder = unbox(pointer, as: CMSEncoder.self),
-          let algorithm = stringFromCString(algorithmPointer)
+          let algorithm = stringFromBuffer(algorithmPointer)
     else {
         setError(errorOut, "encoder handle and digest algorithm are required")
         return errSecParam
@@ -697,7 +698,7 @@ public func securityCmsEncoderCopySigners(
         setError(errorOut, "CMSEncoderCopySigners failed: \(statusMessage(status))")
         return nil
     }
-    return jsonHandle(signers as Any? ?? [])
+    return valueHandle(signers as Any? ?? [])
 }
 
 @_cdecl("security_cms_encoder_add_recipients")
@@ -750,7 +751,7 @@ public func securityCmsEncoderCopyRecipients(
         setError(errorOut, "CMSEncoderCopyRecipients failed: \(statusMessage(status))")
         return nil
     }
-    return jsonHandle(recipients as Any? ?? [])
+    return valueHandle(recipients as Any? ?? [])
 }
 
 @_cdecl("security_cms_encoder_set_has_detached_content")
@@ -801,13 +802,13 @@ public func securityCmsEncoderGetHasDetachedContent(
 @_cdecl("security_cms_encoder_set_encapsulated_content_type_oid")
 public func securityCmsEncoderSetEncapsulatedContentTypeOID(
     _ pointer: UnsafeMutableRawPointer?,
-    _ oidPointer: UnsafePointer<CChar>?,
+    _ oidPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
     guard let encoder = unbox(pointer, as: CMSEncoder.self),
-          let oid = stringFromCString(oidPointer)
+          let oid = stringFromBuffer(oidPointer)
     else {
         setError(errorOut, "encoder handle and encapsulated content type OID are required")
         return errSecParam
@@ -895,7 +896,7 @@ public func securityCmsEncoderCopySupportingCerts(
         setError(errorOut, "CMSEncoderCopySupportingCerts failed: \(statusMessage(status))")
         return nil
     }
-    return jsonHandle(certificates as Any? ?? [])
+    return valueHandle(certificates as Any? ?? [])
 }
 
 @_cdecl("security_cms_encoder_add_signed_attributes")
@@ -1024,7 +1025,7 @@ public func securityCmsEncodeContent(
     _ identityCount: Int,
     _ certificatePointers: UnsafePointer<UnsafeMutableRawPointer?>?,
     _ certificateCount: Int,
-    _ econtentTypeOIDPointer: UnsafePointer<CChar>?,
+    _ econtentTypeOIDPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ detachedContent: Bool,
     _ signedAttributes: UInt32,
     _ dataPointer: UnsafeRawPointer?,
@@ -1060,7 +1061,7 @@ public func securityCmsEncodeContent(
     } else {
         recipientInput = recipients as CFArray
     }
-    let econtentTypeOID = stringFromCString(econtentTypeOIDPointer) as CFString?
+    let econtentTypeOID = stringFromBuffer(econtentTypeOIDPointer) as CFString?
 
     var encodedContent: CFData?
     let status = data.withUnsafeBytes { bytes in

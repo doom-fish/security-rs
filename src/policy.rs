@@ -1,5 +1,4 @@
-use serde::Serialize;
-use serde_json::Value;
+use crate::Value;
 
 use crate::bridge::{self, Handle};
 use crate::error::{Result, SecurityError};
@@ -79,8 +78,7 @@ impl PolicyIdentifier {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// Mirrors name inputs passed to `SecPolicyCreateWithProperties`.
 pub enum PolicyName {
     /// Mirrors a name form accepted by `SecPolicyCreateWithProperties`.
@@ -101,19 +99,15 @@ impl From<&str> for PolicyName {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 /// Mirrors the property dictionary passed to `SecPolicyCreateWithProperties`.
 pub struct PolicyProperties {
-    #[serde(skip_serializing_if = "Option::is_none")]
     /// Mirrors a property accepted by `SecPolicyCreateWithProperties`.
     pub name: Option<PolicyName>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     /// Mirrors a property accepted by `SecPolicyCreateWithProperties`.
     pub client: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     /// Mirrors a property accepted by `SecPolicyCreateWithProperties`.
     pub revocation_flags: Option<RevocationFlags>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     /// Mirrors a property accepted by `SecPolicyCreateWithProperties`.
     pub team_identifier: Option<String>,
 }
@@ -215,10 +209,32 @@ impl Policy {
         let properties = if properties.is_empty() {
             None
         } else {
-            let json = serde_json::to_string(properties).map_err(|error| {
-                SecurityError::Serialization(format!("policy properties JSON failed: {error}"))
-            })?;
-            Some(bridge::cstring(&json)?)
+            let mut values = std::collections::BTreeMap::new();
+            if let Some(name) = &properties.name {
+                let name = match name {
+                    PolicyName::Single(value) => Value::String(value.clone()),
+                    PolicyName::Multiple(values) => {
+                        Value::Array(values.iter().cloned().map(Value::String).collect())
+                    }
+                };
+                values.insert("name".to_owned(), name);
+            }
+            if let Some(client) = properties.client {
+                values.insert("client".to_owned(), Value::Bool(client));
+            }
+            if let Some(flags) = properties.revocation_flags {
+                values.insert(
+                    "revocation_flags".to_owned(),
+                    Value::Unsigned(u64::from(flags)),
+                );
+            }
+            if let Some(identifier) = &properties.team_identifier {
+                values.insert(
+                    "team_identifier".to_owned(),
+                    Value::String(identifier.clone()),
+                );
+            }
+            Some(bridge::InputValue::new(&Value::Object(values))?)
         };
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -227,7 +243,7 @@ impl Policy {
                 identifier.as_ptr(),
                 properties
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_c_str().as_ptr()),
+                    .map_or(std::ptr::null(), bridge::InputValue::as_ptr),
                 &raw mut status,
                 &raw mut error,
             )
@@ -247,6 +263,6 @@ impl Policy {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_policy_copy_properties", raw, status, error)
+        bridge::required_value("security_policy_copy_properties", raw, status, error)
     }
 }

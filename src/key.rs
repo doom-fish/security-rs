@@ -1,4 +1,4 @@
-use serde_json::Value;
+use crate::Value;
 
 use crate::bridge::{self, Handle};
 use crate::certificate::PublicKey;
@@ -264,7 +264,7 @@ impl PrivateKey {
                 bridge::len_to_isize(data.len())?,
                 file_name_or_extension
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::BridgeString::as_ptr),
                 format as u32,
                 item_type as u32,
                 &raw mut status,
@@ -311,7 +311,7 @@ impl PrivateKey {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_key_copy_attributes", raw, status, error)
+        bridge::required_value("security_key_copy_attributes", raw, status, error)
     }
 
     /// Wraps the corresponding private `SecKeyRef` operation.

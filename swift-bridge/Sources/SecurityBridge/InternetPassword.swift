@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SecurityBridgeABI
 
 private func internetPasswordQuery(server: String) -> [CFString: Any] {
     [
@@ -10,8 +11,8 @@ private func internetPasswordQuery(server: String) -> [CFString: Any] {
 
 @_cdecl("security_internet_password_set_item")
 public func securityInternetPasswordSetItem(
-    _ serverPointer: UnsafePointer<CChar>?,
-    _ accountPointer: UnsafePointer<CChar>?,
+    _ serverPointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ accountPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ dataPointer: UnsafeRawPointer?,
     _ dataLength: Int,
     _ failedOperationOut: UnsafeMutablePointer<Int32>?,
@@ -20,8 +21,8 @@ public func securityInternetPasswordSetItem(
     clearError(errorOut)
     failedOperationOut?.pointee = 0
 
-    guard let server = stringFromCString(serverPointer),
-          let account = stringFromCString(accountPointer),
+    guard let server = stringFromBuffer(serverPointer),
+          let account = stringFromBuffer(accountPointer),
           dataLength >= 0,
           dataPointer != nil || dataLength == 0,
           let secret = NSMutableData(length: dataLength)
@@ -64,7 +65,7 @@ public func securityInternetPasswordSetItem(
 
 @_cdecl("security_internet_password_copy_item")
 public func securityInternetPasswordCopyItem(
-    _ serverPointer: UnsafePointer<CChar>?,
+    _ serverPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ accountOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
@@ -73,7 +74,7 @@ public func securityInternetPasswordCopyItem(
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let server = stringFromCString(serverPointer) else {
+    guard let server = stringFromBuffer(serverPointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "server is required")
         return nil
@@ -108,12 +109,12 @@ public func securityInternetPasswordCopyItem(
 
 @_cdecl("security_internet_password_delete_item")
 public func securityInternetPasswordDeleteItem(
-    _ serverPointer: UnsafePointer<CChar>?,
+    _ serverPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
-    guard let server = stringFromCString(serverPointer) else {
+    guard let server = stringFromBuffer(serverPointer) else {
         setError(errorOut, "server is required")
         return errSecParam
     }

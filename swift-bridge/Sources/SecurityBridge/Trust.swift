@@ -1,6 +1,7 @@
 import Dispatch
 import Foundation
 import Security
+import SecurityBridgeABI
 
 @_cdecl("security_trust_get_type_id")
 public func securityTrustGetTypeID() -> UInt {
@@ -15,8 +16,8 @@ private func trustErrorMessage(_ error: CFError?) -> String {
     return (error as Error).localizedDescription
 }
 
-private func trustJSONArray(_ value: Any?) -> UnsafeMutableRawPointer? {
-    jsonHandle(value ?? [])
+private func trustValueArray(_ value: Any?) -> UnsafeMutableRawPointer? {
+    valueHandle(value ?? [])
 }
 
 @_cdecl("security_trust_create")
@@ -110,7 +111,7 @@ public func securityTrustCopyPolicies(
         return nil
     }
 
-    return trustJSONArray(policies)
+    return trustValueArray(policies)
 }
 
 @_cdecl("security_trust_set_anchor_certificates")
@@ -163,7 +164,7 @@ public func securityTrustCopyCustomAnchorCertificates(
         return nil
     }
 
-    return trustJSONArray(anchors)
+    return trustValueArray(anchors)
 }
 
 @_cdecl("security_trust_set_anchor_certificates_only")
@@ -270,7 +271,7 @@ public func securityTrustGetVerifyTime(
     guard verifyTime != 0 else {
         return nil
     }
-    return jsonHandle(Date(timeIntervalSinceReferenceDate: verifyTime))
+    return valueHandle(Date(timeIntervalSinceReferenceDate: verifyTime))
 }
 
 @_cdecl("security_trust_evaluate")
@@ -417,7 +418,7 @@ public func securityTrustCopyResult(
         return nil
     }
 
-    return jsonHandle(result)
+    return valueHandle(result)
 }
 
 @_cdecl("security_trust_copy_key")
@@ -508,7 +509,7 @@ public func securityTrustSetExceptions(
 @_cdecl("security_trust_set_ocsp_response")
 public func securityTrustSetOCSPResponse(
     _ trustPointer: UnsafeMutableRawPointer?,
-    _ responsesPointer: UnsafePointer<CChar>?,
+    _ responsesPointer: UnsafePointer<SecurityBridgeValue>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
@@ -518,21 +519,21 @@ public func securityTrustSetOCSPResponse(
         return errSecParam
     }
 
-    let responseObject = jsonObject(fromCString: responsesPointer)
+    let responseObject = valueObject(from: responsesPointer)
     let responseInput: CFTypeRef?
     if responsesPointer == nil {
         responseInput = nil
-    } else if let responseData = jsonData(fromJSONObject: responseObject) {
+    } else if let responseData = valueData(from: responseObject) {
         responseInput = responseData as CFData
     } else if let responseItems = responseObject as? [Any] {
-        let responses = responseItems.compactMap(jsonData(fromJSONObject:))
+        let responses = responseItems.compactMap(valueData(from:))
         guard responses.count == responseItems.count else {
-            setError(errorOut, "OCSP response JSON was invalid")
+            setError(errorOut, "OCSP response binary value was invalid")
             return errSecParam
         }
         responseInput = responses as CFArray
     } else {
-        setError(errorOut, "OCSP response JSON was invalid")
+        setError(errorOut, "OCSP response binary value was invalid")
         return errSecParam
     }
 
@@ -546,7 +547,7 @@ public func securityTrustSetOCSPResponse(
 @_cdecl("security_trust_set_signed_certificate_timestamps")
 public func securityTrustSetSignedCertificateTimestamps(
     _ trustPointer: UnsafeMutableRawPointer?,
-    _ timestampsPointer: UnsafePointer<CChar>?,
+    _ timestampsPointer: UnsafePointer<SecurityBridgeValue>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
@@ -555,12 +556,12 @@ public func securityTrustSetSignedCertificateTimestamps(
         setError(errorOut, "trust handle is required")
         return errSecParam
     }
-    guard timestampsPointer == nil || jsonDataArray(fromCString: timestampsPointer) != nil else {
-        setError(errorOut, "signed certificate timestamp JSON was invalid")
+    guard timestampsPointer == nil || valueDataArray(from: timestampsPointer) != nil else {
+        setError(errorOut, "signed certificate timestamp binary value was invalid")
         return errSecParam
     }
 
-    let status = SecTrustSetSignedCertificateTimestamps(trust, jsonDataArray(fromCString: timestampsPointer) as CFArray?)
+    let status = SecTrustSetSignedCertificateTimestamps(trust, valueDataArray(from: timestampsPointer) as CFArray?)
     if status != errSecSuccess {
         setError(errorOut, "SecTrustSetSignedCertificateTimestamps failed: \(statusMessage(status))")
     }
@@ -602,5 +603,5 @@ public func securityTrustCopyAnchorCertificates(
         setError(errorOut, "SecTrustCopyAnchorCertificates failed: \(statusMessage(status))")
         return nil
     }
-    return trustJSONArray(anchors)
+    return trustValueArray(anchors)
 }

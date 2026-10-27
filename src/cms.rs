@@ -1,7 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use bitflags::bitflags;
-use serde_json::Value;
+use crate::Value;
 
 use crate::bridge;
 use crate::certificate::Certificate;
@@ -10,26 +9,145 @@ use crate::identity::Identity;
 use crate::policy::Policy;
 use crate::trust::Trust;
 
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    /// Mirrors signed-attribute bits used by the CMS encoder APIs.
-    pub struct CmsSignedAttributes: u32 {
-        /// Mirrors a CMS signed-attribute bit.
-        const NONE = 0;
-        /// Mirrors a CMS signed-attribute bit.
-        const SMIME_CAPABILITIES = 0x0001;
-        /// Mirrors a CMS signed-attribute bit.
-        const SMIME_ENCRYPTION_KEY_PREFS = 0x0002;
-        /// Mirrors a CMS signed-attribute bit.
-        const SMIME_MS_ENCRYPTION_KEY_PREFS = 0x0004;
-        /// Mirrors a CMS signed-attribute bit.
-        const SIGNING_TIME = 0x0008;
-        /// Mirrors a CMS signed-attribute bit.
-        const APPLE_CODESIGNING_HASH_AGILITY = 0x0010;
-        /// Mirrors a CMS signed-attribute bit.
-        const APPLE_CODESIGNING_HASH_AGILITY_V2 = 0x0020;
-        /// Mirrors a CMS signed-attribute bit.
-        const APPLE_EXPIRATION_TIME = 0x0040;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+#[must_use]
+/// Mirrors signed-attribute bits used by the CMS encoder APIs.
+pub struct CmsSignedAttributes(u32);
+
+impl CmsSignedAttributes {
+    /// Mirrors a CMS signed-attribute bit.
+    pub const NONE: Self = Self(0);
+    /// Mirrors a CMS signed-attribute bit.
+    pub const SMIME_CAPABILITIES: Self = Self(0x0001);
+    /// Mirrors a CMS signed-attribute bit.
+    pub const SMIME_ENCRYPTION_KEY_PREFS: Self = Self(0x0002);
+    /// Mirrors a CMS signed-attribute bit.
+    pub const SMIME_MS_ENCRYPTION_KEY_PREFS: Self = Self(0x0004);
+    /// Mirrors a CMS signed-attribute bit.
+    pub const SIGNING_TIME: Self = Self(0x0008);
+    /// Mirrors a CMS signed-attribute bit.
+    pub const APPLE_CODESIGNING_HASH_AGILITY: Self = Self(0x0010);
+    /// Mirrors a CMS signed-attribute bit.
+    pub const APPLE_CODESIGNING_HASH_AGILITY_V2: Self = Self(0x0020);
+    /// Mirrors a CMS signed-attribute bit.
+    pub const APPLE_EXPIRATION_TIME: Self = Self(0x0040);
+
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+    pub const fn all() -> Self {
+        Self(0x7f)
+    }
+    pub const fn bits(self) -> u32 {
+        self.0
+    }
+    pub const fn from_bits(bits: u32) -> Option<Self> {
+        if bits & !Self::all().0 == 0 {
+            Some(Self(bits))
+        } else {
+            None
+        }
+    }
+    pub const fn from_bits_retain(bits: u32) -> Self {
+        Self(bits)
+    }
+    pub const fn from_bits_truncate(bits: u32) -> Self {
+        Self(bits & Self::all().0)
+    }
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+    pub const fn is_all(self) -> bool {
+        self.0 & Self::all().0 == Self::all().0
+    }
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+    pub const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+    pub const fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+    pub const fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+    pub const fn symmetric_difference(self, other: Self) -> Self {
+        Self(self.0 ^ other.0)
+    }
+    pub const fn complement(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+    pub fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+    pub fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
+    }
+    pub fn toggle(&mut self, other: Self) {
+        self.0 ^= other.0;
+    }
+    pub fn set(&mut self, other: Self, value: bool) {
+        if value {
+            self.0 |= other.0;
+        } else {
+            self.0 &= !other.0;
+        }
+    }
+}
+
+impl std::ops::BitOr for CmsSignedAttributes {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+impl std::ops::BitAnd for CmsSignedAttributes {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+impl std::ops::BitXor for CmsSignedAttributes {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self {
+        Self(self.0 ^ rhs.0)
+    }
+}
+impl std::ops::Sub for CmsSignedAttributes {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 & !rhs.0)
+    }
+}
+impl std::ops::Not for CmsSignedAttributes {
+    type Output = Self;
+    fn not(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+}
+impl std::ops::BitOrAssign for CmsSignedAttributes {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+impl std::ops::BitAndAssign for CmsSignedAttributes {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+impl std::ops::BitXorAssign for CmsSignedAttributes {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 ^= rhs.0;
+    }
+}
+impl std::ops::SubAssign for CmsSignedAttributes {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 &= !rhs.0;
     }
 }
 
@@ -127,10 +245,10 @@ impl CmsSignerStatusReport {
             && self.certificate_verification == CmsCertificateVerification::Evaluated(0)
     }
 
-    fn from_json(value: &Value, trust: Option<Trust>) -> Result<Self> {
+    fn from_value(value: &Value, trust: Option<Trust>) -> Result<Self> {
         let unexpected = || SecurityError::UnexpectedType {
             operation: "security_cms_decoder_copy_signer_status",
-            expected: "signer status JSON object",
+            expected: "signer status dictionary",
         };
         let signer_status = value
             .get("signerStatus")
@@ -279,13 +397,13 @@ impl CmsDecoder {
             )
         };
         let trust = bridge::Handle::from_raw(trust).map(Trust::from_handle);
-        let value: Value = bridge::required_json(
+        let value: Value = bridge::required_value(
             "security_cms_decoder_copy_signer_status",
             raw,
             status,
             error,
         )?;
-        CmsSignerStatusReport::from_json(&value, trust)
+        CmsSignerStatusReport::from_value(&value, trust)
     }
 
     /// Wraps the corresponding Security.framework CMS decoder operation.
@@ -457,7 +575,7 @@ impl CmsDecoder {
                 &raw mut error,
             )
         };
-        bridge::required_json(
+        bridge::required_value(
             "security_cms_decoder_copy_signer_timestamp_certificates",
             raw,
             status,
@@ -543,7 +661,7 @@ impl CmsEncoder {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_cms_encoder_copy_signers", raw, status, error)
+        bridge::required_value("security_cms_encoder_copy_signers", raw, status, error)
     }
 
     /// Wraps the corresponding Security.framework CMS encoder operation.
@@ -576,7 +694,7 @@ impl CmsEncoder {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_cms_encoder_copy_recipients", raw, status, error)
+        bridge::required_value("security_cms_encoder_copy_recipients", raw, status, error)
     }
 
     /// Wraps the corresponding Security.framework CMS encoder operation.
@@ -686,7 +804,7 @@ impl CmsEncoder {
                 &raw mut error,
             )
         };
-        bridge::required_json(
+        bridge::required_value(
             "security_cms_encoder_copy_supporting_certs",
             raw,
             status,
@@ -895,7 +1013,7 @@ impl Cms {
                 bridge::len_to_isize(recipient_pointers.len())?,
                 encapsulated_content_type_oid
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::BridgeString::as_ptr),
                 detached_content,
                 signed_attributes.bits(),
                 content.as_ptr().cast(),
@@ -916,20 +1034,18 @@ fn decode_optional_cms_date(
     if status != 0 {
         return Err(bridge::status_error(operation, status, error)?);
     }
-    bridge::optional_json::<Value>(raw)?.map_or(Ok(None), |value| {
+    bridge::optional_value(raw)?.map_or(Ok(None), |value| {
         decode_cms_date(value, operation).map(Some)
     })
 }
 
 fn decode_cms_date(value: Value, operation: &'static str) -> Result<SystemTime> {
-    let unix =
-        value
-            .get("unix")
-            .and_then(Value::as_f64)
-            .ok_or_else(|| SecurityError::UnexpectedType {
-                operation,
-                expected: "date JSON object",
-            })?;
+    let unix = value
+        .as_date()
+        .ok_or_else(|| SecurityError::UnexpectedType {
+            operation,
+            expected: "date",
+        })?;
     let out_of_range = || SecurityError::InvalidArgument("CMS date is out of range".to_owned());
     let duration = Duration::try_from_secs_f64(unix.abs()).map_err(|_| out_of_range())?;
     if unix >= 0.0 {

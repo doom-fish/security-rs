@@ -1,3 +1,5 @@
+#[path = "support/executor.rs"]
+mod executor;
 #[path = "support/mod.rs"]
 mod support;
 
@@ -6,7 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use security::async_api::AsyncTrust;
     use security::{Certificate, Policy, Trust};
 
-    pollster::block_on(async {
+    executor::block_on(async {
         let certificate = Certificate::from_der(&support::fixture("test-cert.der"))?;
         let policy = Policy::basic_x509()?;
         let mut trust = Trust::new(&certificate, &[policy])?;

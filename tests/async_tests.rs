@@ -1,6 +1,8 @@
 #![cfg(feature = "async")]
 
 mod common;
+#[path = "../examples/support/executor.rs"]
+mod executor;
 
 use security::async_api::{AsyncAuthorization, AsyncTrust};
 use security::{Authorization, AuthorizationOptions, Certificate, Policy, SecurityError, Trust};
@@ -11,13 +13,13 @@ fn async_trust_evaluation_reports_both_outcomes() -> security::Result<()> {
     let mut trust = Trust::new(&certificate, &[Policy::basic_x509()?])?;
     trust.set_network_fetch_allowed(false)?;
     assert!(matches!(
-        pollster::block_on(AsyncTrust::new(&trust).evaluate()?),
+        executor::block_on(AsyncTrust::new(&trust).evaluate()?),
         Err(SecurityError::TrustEvaluationFailed(_))
     ));
 
     trust.set_anchor_certificates(&[certificate])?;
     trust.set_anchor_certificates_only(true)?;
-    pollster::block_on(AsyncTrust::new(&trust).evaluate()?)?;
+    executor::block_on(AsyncTrust::new(&trust).evaluate()?)?;
     trust.evaluate_async()?;
     Ok(())
 }
@@ -29,7 +31,7 @@ fn async_rights_request_without_interaction_fails_without_ui() -> security::Resu
         &["system.privilege.admin"],
         AuthorizationOptions::EXTEND_RIGHTS,
     )?;
-    assert!(pollster::block_on(request).is_err());
+    assert!(executor::block_on(request).is_err());
     assert!(AsyncAuthorization::new(&authorization)
         .copy_rights(&[], AuthorizationOptions::EXTEND_RIGHTS)
         .is_err());
@@ -54,6 +56,6 @@ fn dropping_the_authorization_while_a_request_is_in_flight_is_safe() -> security
         &["system.privilege.admin"],
         AuthorizationOptions::EXTEND_RIGHTS,
     )?;
-    assert!(pollster::block_on(request).is_err());
+    assert!(executor::block_on(request).is_err());
     Ok(())
 }

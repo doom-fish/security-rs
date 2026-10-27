@@ -14,16 +14,18 @@ use core::marker::PhantomData;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 use std::future::Future;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr;
 
-use doom_fish_utils::completion::{AsyncCompletion, AsyncCompletionFuture};
-use doom_fish_utils::panic_safe::catch_user_panic;
-use serde_json::Value;
+use crate::Value;
 
-use crate::authorization::{rights_json, Authorization, AuthorizationOptions};
+use crate::authorization::{rights_value, Authorization, AuthorizationOptions};
 use crate::bridge;
 use crate::error::{status, Result, SecurityError};
 use crate::trust::Trust;
+
+mod completion;
+use completion::Completion;
 
 fn flatten_async_result<T>(result: std::result::Result<Result<T>, String>) -> Result<T> {
     result
@@ -54,27 +56,27 @@ unsafe extern "C" fn trust_evaluate_async_cb(
     trusted: bool,
     error_raw: *mut c_void,
 ) {
-    catch_user_panic("security::trust_evaluate_async_cb", || {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
         let result = if trusted {
             Ok(())
         } else {
             Err(trust_failure(error_raw))
         };
         unsafe {
-            AsyncCompletion::<Result<()>>::complete_ok(refcon, result);
+            Completion::<Result<()>>::complete(refcon, Ok(result));
         };
-    });
+    }));
 }
 
 unsafe extern "C" fn authorization_copy_rights_async_cb(
     refcon: *mut c_void,
-    json_raw: *mut c_void,
+    value_raw: *mut c_void,
     status_raw: i32,
     error_raw: *mut c_void,
 ) {
-    catch_user_panic("security::authorization_copy_rights_async_cb", || {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
         let result = if status_raw == status::SUCCESS {
-            match bridge::optional_json::<Value>(json_raw) {
+            match bridge::optional_value(value_raw) {
                 Ok(Some(value)) => Ok(value),
                 Ok(None) => Err(SecurityError::InvalidArgument(
                     "security_authorization_copy_rights_async_start returned no authorization rights"
@@ -90,14 +92,14 @@ unsafe extern "C" fn authorization_copy_rights_async_cb(
             ))
         };
         unsafe {
-            AsyncCompletion::<Result<Value>>::complete_ok(refcon, result);
+            Completion::<Result<Value>>::complete(refcon, Ok(result));
         };
-    });
+    }));
 }
 
 /// Future returned by [`AsyncTrust::evaluate`].
 pub struct TrustEvaluateFuture<'a> {
-    inner: AsyncCompletionFuture<Result<()>>,
+    inner: Completion<Result<()>>,
     _owner: PhantomData<&'a Trust>,
 }
 
@@ -118,7 +120,7 @@ impl Future for TrustEvaluateFuture<'_> {
 
 /// Future returned by [`AsyncAuthorization::copy_rights`].
 pub struct AuthorizationRightsFuture<'a> {
-    inner: AsyncCompletionFuture<Result<Value>>,
+    inner: Completion<Result<Value>>,
     _owner: PhantomData<&'a Authorization>,
 }
 
@@ -152,7 +154,7 @@ impl<'a> AsyncTrust<'a> {
 
     /// Start `SecTrustEvaluateAsyncWithError` and await its callback.
     pub fn evaluate(&self) -> Result<TrustEvaluateFuture<'a>> {
-        let (inner, refcon) = AsyncCompletion::<Result<()>>::create();
+        let (inner, refcon) = Completion::<Result<()>>::new();
         let mut error_raw = ptr::null_mut();
         let status = unsafe {
             bridge::security_trust_evaluate_async_start(
@@ -166,7 +168,7 @@ impl<'a> AsyncTrust<'a> {
             let error =
                 bridge_status_error("security_trust_evaluate_async_start", status, error_raw);
             unsafe {
-                AsyncCompletion::<Result<()>>::complete_err(refcon, error.to_string());
+                Completion::<Result<()>>::complete(refcon, Err(error.to_string()));
             };
             drop(inner);
             return Err(error);
@@ -198,13 +200,13 @@ impl<'a> AsyncAuthorization<'a> {
         rights: &[&str],
         options: AuthorizationOptions,
     ) -> Result<AuthorizationRightsFuture<'a>> {
-        let rights_json = rights_json(rights)?;
-        let (inner, refcon) = AsyncCompletion::<Result<Value>>::create();
+        let rights_value = rights_value(rights)?;
+        let (inner, refcon) = Completion::<Result<Value>>::new();
         let mut error_raw = ptr::null_mut();
         let status = unsafe {
             bridge::security_authorization_copy_rights_async_start(
                 self.authorization.as_ptr(),
-                rights_json.as_ptr(),
+                rights_value.as_ptr(),
                 options.bits(),
                 refcon,
                 Some(authorization_copy_rights_async_cb),
@@ -218,7 +220,7 @@ impl<'a> AsyncAuthorization<'a> {
                 error_raw,
             );
             unsafe {
-                AsyncCompletion::<Result<Value>>::complete_err(refcon, error.to_string());
+                Completion::<Result<Value>>::complete(refcon, Err(error.to_string()));
             };
             drop(inner);
             return Err(error);

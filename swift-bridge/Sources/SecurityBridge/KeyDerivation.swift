@@ -1,9 +1,10 @@
 import Foundation
 import Security
+import SecurityBridgeABI
 
 @_cdecl("security_key_derivation_derive_pbkdf2_sha256")
 public func securityKeyDerivationDerivePBKDF2SHA256(
-    _ passwordPointer: UnsafePointer<CChar>?,
+    _ passwordPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ saltPointer: UnsafeRawPointer?,
     _ saltLength: Int,
     _ rounds: Int,
@@ -14,7 +15,7 @@ public func securityKeyDerivationDerivePBKDF2SHA256(
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let password = stringFromCString(passwordPointer),
+    guard let password = stringFromBuffer(passwordPointer),
           let salt = dataFromPointer(saltPointer, length: saltLength),
           rounds > 0,
           keySizeBits > 0

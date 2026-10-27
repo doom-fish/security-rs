@@ -9,6 +9,15 @@ Legend:
 The default `full` feature exposes the full safe API.
 Without default features, the crate exposes key, certificate, and error types, except `Certificate::from_pem`.
 
+Version 0.8 preserves framework coverage and replaces the structured text bridge with shared C ABI records.
+The C header is `swift-bridge/Sources/SecurityBridgeABI/include/SecurityBridgeABI.h`.
+Rust and C check the record sizes at compile time.
+All string arguments use the shared pointer-and-length buffer.
+The `Value` enum preserves native data, date, and URL types.
+Input buffers belong to Rust until the call returns.
+Result buffers belong to their Swift handle until Rust releases that handle.
+The default, reduced, and asynchronous feature sets have no Rust dependencies.
+
 The safe API defaults to the Swift bridge. Direct raw C declarations remain available behind the `raw-ffi` Cargo feature, which now exhaustively covers the non-deprecated macOS-available `SecAccessControl.h`, `SecItem.h`, `SecKey.h`, and `SecPolicy.h` surfaces. [`COVERAGE_AUDIT.md`](COVERAGE_AUDIT.md) lists every function of a self-selected 321-function sample (25 headers, MacOSX26.2.sdk, not regenerated for later SDKs) as verified or exempt; it measures that sample, not the framework, and counts wrappers regardless of how much of each API's option space they expose.
 
 | Area | API / header surface | Status | Notes |

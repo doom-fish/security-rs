@@ -1,4 +1,4 @@
-use serde_json::Value;
+use crate::Value;
 
 use crate::bridge;
 use crate::error::Result;
@@ -30,7 +30,7 @@ impl AgreementPublicKey {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_key_copy_attributes", raw, status, error)
+        bridge::required_value("security_key_copy_attributes", raw, status, error)
     }
 }
 

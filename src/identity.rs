@@ -1,5 +1,5 @@
-use serde_json::Value;
-use zeroize::Zeroizing;
+use crate::secret::Zeroizing;
+use crate::Value;
 
 use crate::bridge;
 use crate::certificate::Certificate;
@@ -29,13 +29,14 @@ impl Identity {
     /// Wraps the corresponding `SecIdentityRef` operation.
     pub fn import_pkcs12_first(data: &[u8], password: &str) -> Result<Self> {
         let password = Zeroizing::new(bridge::cstring(password)?.into_bytes_with_nul());
+        let password_buffer = bridge::AbiBuffer::new(&password[..password.len() - 1]);
         let mut status = 0;
         let mut error = std::ptr::null_mut();
         let raw = unsafe {
             bridge::security_identity_import_pkcs12_first(
                 data.as_ptr().cast(),
                 bridge::len_to_isize(data.len())?,
-                password.as_ptr().cast(),
+                &raw const password_buffer,
                 &raw mut status,
                 &raw mut error,
             )
@@ -99,10 +100,10 @@ impl Identity {
     ) -> Result<Option<Self>> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())
-            .then(|| bridge::json_cstring(&key_usage))
+            .then(|| bridge::InputValue::strings(key_usage))
             .transpose()?;
         let valid_issuers = (!valid_issuers.is_empty())
-            .then(|| bridge::json_cstring(&valid_issuers))
+            .then(|| bridge::InputValue::data_array(valid_issuers))
             .transpose()?;
         let mut status = 0;
         let mut error = std::ptr::null_mut();
@@ -111,10 +112,10 @@ impl Identity {
                 name.as_ptr(),
                 key_usage
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::InputValue::as_ptr),
                 valid_issuers
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::InputValue::as_ptr),
                 &raw mut status,
                 &raw mut error,
             )
@@ -132,7 +133,7 @@ impl Identity {
     pub fn set_preferred(identity: Option<&Self>, name: &str, key_usage: &[&str]) -> Result<()> {
         let name = bridge::cstring(name)?;
         let key_usage = (!key_usage.is_empty())
-            .then(|| bridge::json_cstring(&key_usage))
+            .then(|| bridge::InputValue::strings(key_usage))
             .transpose()?;
         let mut error = std::ptr::null_mut();
         let status = unsafe {
@@ -141,7 +142,7 @@ impl Identity {
                 name.as_ptr(),
                 key_usage
                     .as_ref()
-                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                    .map_or(std::ptr::null(), bridge::InputValue::as_ptr),
                 &raw mut error,
             )
         };
@@ -222,7 +223,7 @@ impl Identity {
                 &raw mut error,
             )
         };
-        bridge::required_json(
+        bridge::required_value(
             "security_identity_copy_private_key_attributes",
             raw,
             status,

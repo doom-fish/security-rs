@@ -28,6 +28,10 @@ pub mod async_api;
 pub mod authorization;
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
 mod bridge;
+#[cfg(feature = "full")]
+mod encoding;
+mod value;
+pub use value::Value;
 /// Safe wrappers for `SecCertificateRef` and public-key APIs in Security.framework.
 pub mod certificate;
 /// Safe wrappers for CMS encoder and decoder APIs in Security.framework.

@@ -1,31 +1,149 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use bitflags::bitflags;
-use serde_json::Value;
+use crate::Value;
 
 use crate::bridge;
 use crate::certificate::{Certificate, PublicKey};
 use crate::error::{Result, SecurityError};
 pub use crate::policy::Policy;
 
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    /// Mirrors `SecTrustOptionFlags`.
-    pub struct TrustOptions: u32 {
-        /// Mirrors a `SecTrustOptionFlags` bit.
-        const ALLOW_EXPIRED = 0x0000_0001;
-        /// Mirrors a `SecTrustOptionFlags` bit.
-        const LEAF_IS_CA = 0x0000_0002;
-        /// Mirrors a `SecTrustOptionFlags` bit.
-        const FETCH_ISSUER_FROM_NET = 0x0000_0004;
-        /// Mirrors a `SecTrustOptionFlags` bit.
-        const ALLOW_EXPIRED_ROOT = 0x0000_0008;
-        /// Mirrors a `SecTrustOptionFlags` bit.
-        const REQUIRE_REVOCATION_PER_CERT = 0x0000_0010;
-        /// Mirrors a `SecTrustOptionFlags` bit.
-        const USE_TRUST_SETTINGS = 0x0000_0020;
-        /// Mirrors a `SecTrustOptionFlags` bit.
-        const IMPLICIT_ANCHORS = 0x0000_0040;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+#[must_use]
+/// Mirrors `SecTrustOptionFlags`.
+pub struct TrustOptions(u32);
+
+impl TrustOptions {
+    /// Mirrors a `SecTrustOptionFlags` bit.
+    pub const ALLOW_EXPIRED: Self = Self(0x0000_0001);
+    /// Mirrors a `SecTrustOptionFlags` bit.
+    pub const LEAF_IS_CA: Self = Self(0x0000_0002);
+    /// Mirrors a `SecTrustOptionFlags` bit.
+    pub const FETCH_ISSUER_FROM_NET: Self = Self(0x0000_0004);
+    /// Mirrors a `SecTrustOptionFlags` bit.
+    pub const ALLOW_EXPIRED_ROOT: Self = Self(0x0000_0008);
+    /// Mirrors a `SecTrustOptionFlags` bit.
+    pub const REQUIRE_REVOCATION_PER_CERT: Self = Self(0x0000_0010);
+    /// Mirrors a `SecTrustOptionFlags` bit.
+    pub const USE_TRUST_SETTINGS: Self = Self(0x0000_0020);
+    /// Mirrors a `SecTrustOptionFlags` bit.
+    pub const IMPLICIT_ANCHORS: Self = Self(0x0000_0040);
+
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+    pub const fn all() -> Self {
+        Self(0x7f)
+    }
+    pub const fn bits(self) -> u32 {
+        self.0
+    }
+    pub const fn from_bits(bits: u32) -> Option<Self> {
+        if bits & !Self::all().0 == 0 {
+            Some(Self(bits))
+        } else {
+            None
+        }
+    }
+    pub const fn from_bits_retain(bits: u32) -> Self {
+        Self(bits)
+    }
+    pub const fn from_bits_truncate(bits: u32) -> Self {
+        Self(bits & Self::all().0)
+    }
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+    pub const fn is_all(self) -> bool {
+        self.0 & Self::all().0 == Self::all().0
+    }
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+    pub const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+    pub const fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+    pub const fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
+    pub const fn symmetric_difference(self, other: Self) -> Self {
+        Self(self.0 ^ other.0)
+    }
+    pub const fn complement(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+    pub fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+    pub fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
+    }
+    pub fn toggle(&mut self, other: Self) {
+        self.0 ^= other.0;
+    }
+    pub fn set(&mut self, other: Self, value: bool) {
+        if value {
+            self.0 |= other.0;
+        } else {
+            self.0 &= !other.0;
+        }
+    }
+}
+
+impl std::ops::BitOr for TrustOptions {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+impl std::ops::BitAnd for TrustOptions {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+impl std::ops::BitXor for TrustOptions {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self {
+        Self(self.0 ^ rhs.0)
+    }
+}
+impl std::ops::Sub for TrustOptions {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 & !rhs.0)
+    }
+}
+impl std::ops::Not for TrustOptions {
+    type Output = Self;
+    fn not(self) -> Self {
+        Self(!self.0 & Self::all().0)
+    }
+}
+impl std::ops::BitOrAssign for TrustOptions {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+impl std::ops::BitAndAssign for TrustOptions {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+impl std::ops::BitXorAssign for TrustOptions {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 ^= rhs.0;
+    }
+}
+impl std::ops::SubAssign for TrustOptions {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 &= !rhs.0;
     }
 }
 
@@ -147,7 +265,7 @@ impl Trust {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_trust_copy_policies", raw, status, error)
+        bridge::required_value("security_trust_copy_policies", raw, status, error)
     }
 
     /// Wraps the corresponding `SecTrustRef` operation.
@@ -180,7 +298,7 @@ impl Trust {
                 &raw mut error,
             )
         };
-        bridge::required_json(
+        bridge::required_value(
             "security_trust_copy_custom_anchor_certificates",
             raw,
             status,
@@ -266,8 +384,7 @@ impl Trust {
                 error,
             )?);
         }
-        bridge::optional_json::<Value>(raw)?
-            .map_or(Ok(None), |value| decode_trust_date(value).map(Some))
+        bridge::optional_value(raw)?.map_or(Ok(None), |value| decode_trust_date(value).map(Some))
     }
 
     /// Wraps the corresponding `SecTrustRef` operation.
@@ -343,7 +460,7 @@ impl Trust {
                 &raw mut error,
             )
         };
-        bridge::required_json("security_trust_copy_result", raw, status, error)
+        bridge::required_value("security_trust_copy_result", raw, status, error)
     }
 
     /// Wraps the corresponding `SecTrustRef` operation.
@@ -431,7 +548,7 @@ impl Trust {
 
     /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_ocsp_responses(&mut self, responses: &[Vec<u8>]) -> Result<()> {
-        let responses = bridge::json_cstring(&responses)?;
+        let responses = bridge::InputValue::data_array(responses)?;
         let mut error = std::ptr::null_mut();
         let status = unsafe {
             bridge::security_trust_set_ocsp_response(
@@ -445,7 +562,7 @@ impl Trust {
 
     /// Wraps the corresponding `SecTrustRef` operation.
     pub fn set_signed_certificate_timestamps(&mut self, timestamps: &[Vec<u8>]) -> Result<()> {
-        let timestamps = bridge::json_cstring(&timestamps)?;
+        let timestamps = bridge::InputValue::data_array(timestamps)?;
         let mut error = std::ptr::null_mut();
         let status = unsafe {
             bridge::security_trust_set_signed_certificate_timestamps(
@@ -477,7 +594,7 @@ impl Trust {
         let raw = unsafe {
             bridge::security_trust_copy_anchor_certificates(&raw mut status, &raw mut error)
         };
-        bridge::required_json(
+        bridge::required_value(
             "security_trust_copy_anchor_certificates",
             raw,
             status,
@@ -487,14 +604,12 @@ impl Trust {
 }
 
 fn decode_trust_date(value: Value) -> Result<SystemTime> {
-    let unix =
-        value
-            .get("unix")
-            .and_then(Value::as_f64)
-            .ok_or_else(|| SecurityError::UnexpectedType {
-                operation: "security_trust_get_verify_time",
-                expected: "date JSON object",
-            })?;
+    let unix = value
+        .as_date()
+        .ok_or_else(|| SecurityError::UnexpectedType {
+            operation: "security_trust_get_verify_time",
+            expected: "date",
+        })?;
     let out_of_range =
         || SecurityError::InvalidArgument("trust verify time is out of range".to_owned());
     let duration = Duration::try_from_secs_f64(unix.abs()).map_err(|_| out_of_range())?;
@@ -514,8 +629,6 @@ fn system_time_to_unix(time: SystemTime) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-
     use super::*;
 
     #[test]
@@ -554,14 +667,14 @@ mod tests {
 
     #[test]
     fn decode_trust_date_parses_positive_unix_seconds() {
-        let time = decode_trust_date(json!({ "unix": 42.5 })).unwrap();
+        let time = decode_trust_date(Value::Date(42.5)).unwrap();
 
         assert_eq!(time, UNIX_EPOCH + Duration::from_secs_f64(42.5));
     }
 
     #[test]
     fn decode_trust_date_parses_negative_unix_seconds() {
-        let time = decode_trust_date(json!({ "unix": -12.5 })).unwrap();
+        let time = decode_trust_date(Value::Date(-12.5)).unwrap();
 
         assert_eq!(time, UNIX_EPOCH - Duration::from_secs_f64(12.5));
     }
@@ -569,10 +682,10 @@ mod tests {
     #[test]
     fn decode_trust_date_requires_unix_field() {
         assert!(matches!(
-            decode_trust_date(json!({ "seconds": 1 })).unwrap_err(),
+            decode_trust_date(Value::Integer(1)).unwrap_err(),
             SecurityError::UnexpectedType {
                 operation: "security_trust_get_verify_time",
-                expected: "date JSON object",
+                expected: "date",
             }
         ));
     }

@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import Security
+import SecurityBridgeABI
 import XPC
 
 struct CodeRecord {
@@ -82,10 +83,10 @@ private func staticCodeAttributeKey(_ key: String) -> CFString {
 }
 
 private func codeAttributes(
-    from jsonPointer: UnsafePointer<CChar>?,
+    from valuePointer: UnsafePointer<SecurityBridgeValue>?,
     keyMapper: (String) -> CFString
 ) -> CFDictionary? {
-    guard let object = jsonObject(fromCString: jsonPointer) else {
+    guard let object = valueObject(from: valuePointer) else {
         return nil
     }
     guard let dictionary = object as? [String: Any] else {
@@ -96,7 +97,7 @@ private func codeAttributes(
     for (key, value) in dictionary {
         let mappedKey = keyMapper(key)
         if mappedKey == kSecGuestAttributeAudit || mappedKey == kSecGuestAttributeHash,
-           let data = jsonData(fromJSONObject: value)
+           let data = valueData(from: value)
         {
             mapped[mappedKey] = data
         } else {
@@ -217,7 +218,7 @@ public func securityCodeCopySigningInformation(
         return nil
     }
 
-    return jsonHandle(information)
+    return valueHandle(information)
 }
 
 @_cdecl("security_code_copy_audit_token")
@@ -390,7 +391,7 @@ public func securityStaticCodeCopySigningInformation(
         return nil
     }
 
-    return jsonHandle(information)
+    return valueHandle(information)
 }
 
 @_cdecl("security_task_create_from_self")
@@ -437,7 +438,7 @@ public func securityTaskCopySigningIdentifier(
 @_cdecl("security_task_copy_value_for_entitlement")
 public func securityTaskCopyValueForEntitlement(
     _ taskPointer: UnsafeMutableRawPointer?,
-    _ entitlementPointer: UnsafePointer<CChar>?,
+    _ entitlementPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
@@ -445,7 +446,7 @@ public func securityTaskCopyValueForEntitlement(
     setStatus(statusOut, errSecSuccess)
 
     guard let task = unbox(taskPointer, as: SecTask.self),
-          let entitlement = stringFromCString(entitlementPointer)
+          let entitlement = stringFromBuffer(entitlementPointer)
     else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "task handle and entitlement name are required")
@@ -462,7 +463,7 @@ public func securityTaskCopyValueForEntitlement(
         return nil
     }
 
-    return jsonHandle(value)
+    return valueHandle(value)
 }
 
 @_cdecl("security_code_get_type_id")
@@ -513,14 +514,14 @@ public func securityRequirementCreateWithData(
 
 @_cdecl("security_requirement_create_with_string")
 public func securityRequirementCreateWithString(
-    _ textPointer: UnsafePointer<CChar>?,
+    _ textPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let text = stringFromCString(textPointer) else {
+    guard let text = stringFromBuffer(textPointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "requirement string is required")
         return nil
@@ -538,14 +539,14 @@ public func securityRequirementCreateWithString(
 
 @_cdecl("security_requirement_create_with_string_and_errors")
 public func securityRequirementCreateWithStringAndErrors(
-    _ textPointer: UnsafePointer<CChar>?,
+    _ textPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let text = stringFromCString(textPointer) else {
+    guard let text = stringFromBuffer(textPointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "requirement string is required")
         return nil
@@ -618,14 +619,14 @@ public func securityRequirementCopyString(
 
 @_cdecl("security_static_code_create_with_path")
 public func securityStaticCodeCreateWithPath(
-    _ pathPointer: UnsafePointer<CChar>?,
+    _ pathPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let path = stringFromCString(pathPointer) else {
+    guard let path = stringFromBuffer(pathPointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "static code path is required")
         return nil
@@ -643,22 +644,22 @@ public func securityStaticCodeCreateWithPath(
 
 @_cdecl("security_static_code_create_with_path_and_attributes")
 public func securityStaticCodeCreateWithPathAndAttributes(
-    _ pathPointer: UnsafePointer<CChar>?,
-    _ attributesPointer: UnsafePointer<CChar>?,
+    _ pathPointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ attributesPointer: UnsafePointer<SecurityBridgeValue>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let path = stringFromCString(pathPointer) else {
+    guard let path = stringFromBuffer(pathPointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "static code path is required")
         return nil
     }
     guard attributesPointer == nil || codeAttributes(from: attributesPointer, keyMapper: staticCodeAttributeKey) != nil else {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "static code attributes JSON was invalid")
+        setError(errorOut, "static code attributes binary value was invalid")
         return nil
     }
 
@@ -762,7 +763,7 @@ public func securityCodeCopyHost(
 @_cdecl("security_code_copy_guest_with_attributes")
 public func securityCodeCopyGuestWithAttributes(
     _ hostPointer: UnsafeMutableRawPointer?,
-    _ attributesPointer: UnsafePointer<CChar>?,
+    _ attributesPointer: UnsafePointer<SecurityBridgeValue>?,
     _ flags: UInt32,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
@@ -773,7 +774,7 @@ public func securityCodeCopyGuestWithAttributes(
     let attributes = codeAttributes(from: attributesPointer, keyMapper: codeGuestAttributeKey)
     guard attributesPointer == nil || attributes != nil else {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "guest attribute JSON was invalid")
+        setError(errorOut, "guest attribute binary value was invalid")
         return nil
     }
     let host = codeFromPointer(hostPointer)
@@ -799,7 +800,7 @@ public func securityCodeCopyGuestWithAttributes(
 @_cdecl("security_static_code_validate_file_resource")
 public func securityStaticCodeValidateFileResource(
     _ staticCodePointer: UnsafeMutableRawPointer?,
-    _ relativePathPointer: UnsafePointer<CChar>?,
+    _ relativePathPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ dataPointer: UnsafeRawPointer?,
     _ dataLength: Int,
     _ flags: UInt32,
@@ -808,7 +809,7 @@ public func securityStaticCodeValidateFileResource(
     clearError(errorOut)
 
     guard let staticCode = unbox(staticCodePointer, as: SecStaticCode.self),
-          let relativePath = stringFromCString(relativePathPointer),
+          let relativePath = stringFromBuffer(relativePathPointer),
           let data = dataFromPointer(dataPointer, length: dataLength)
     else {
         setError(errorOut, "static code handle, relative path, and file data are required")
@@ -866,7 +867,7 @@ public func securityTaskCreateFromCurrentAuditToken(
 @_cdecl("security_task_copy_values_for_entitlements")
 public func securityTaskCopyValuesForEntitlements(
     _ taskPointer: UnsafeMutableRawPointer?,
-    _ entitlementsPointer: UnsafePointer<CChar>?,
+    _ entitlementsPointer: UnsafePointer<SecurityBridgeValue>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
@@ -878,9 +879,9 @@ public func securityTaskCopyValuesForEntitlements(
         setError(errorOut, "task handle is required")
         return nil
     }
-    guard let entitlements = jsonStringArray(fromCString: entitlementsPointer) else {
+    guard let entitlements = valueStringArray(from: entitlementsPointer) else {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "entitlement name JSON was invalid")
+        setError(errorOut, "entitlement name binary value was invalid")
         return nil
     }
 
@@ -890,5 +891,5 @@ public func securityTaskCopyValuesForEntitlements(
         setError(errorOut, error)
         return nil
     }
-    return jsonHandle(values)
+    return valueHandle(values)
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SecurityBridgeABI
 
 struct IdentityRecord {
     let identity: SecIdentity
@@ -25,7 +26,7 @@ func identityFromPointer(_ pointer: UnsafeMutableRawPointer?) -> SecIdentity? {
 public func securityIdentityImportPkcs12First(
     _ dataPointer: UnsafeRawPointer?,
     _ dataLength: Int,
-    _ passwordPointer: UnsafePointer<CChar>?,
+    _ passwordPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
@@ -33,7 +34,7 @@ public func securityIdentityImportPkcs12First(
     setStatus(statusOut, errSecSuccess)
 
     guard let pkcs12Data = dataFromPointer(dataPointer, length: dataLength),
-          let password = stringFromCString(passwordPointer)
+          let password = stringFromBuffer(passwordPointer)
     else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "PKCS#12 data and password are required")
@@ -142,7 +143,7 @@ public func securityIdentityCopyPrivateKeyAttributes(
         return nil
     }
 
-    return jsonHandle(attributes)
+    return valueHandle(attributes)
 }
 
 @_cdecl("security_identity_get_type_id")
@@ -205,34 +206,34 @@ public func securityIdentityCreateWithCertificate(
 
 @_cdecl("security_identity_copy_preferred")
 public func securityIdentityCopyPreferred(
-    _ namePointer: UnsafePointer<CChar>?,
-    _ keyUsagePointer: UnsafePointer<CChar>?,
-    _ validIssuersPointer: UnsafePointer<CChar>?,
+    _ namePointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ keyUsagePointer: UnsafePointer<SecurityBridgeValue>?,
+    _ validIssuersPointer: UnsafePointer<SecurityBridgeValue>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let name = stringFromCString(namePointer) else {
+    guard let name = stringFromBuffer(namePointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "identity preference name is required")
         return nil
     }
 
-    guard keyUsagePointer == nil || keyUsageArray(fromCString: keyUsagePointer) != nil else {
+    guard keyUsagePointer == nil || keyUsageArray(from: keyUsagePointer) != nil else {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "identity preference key usage JSON was invalid")
+        setError(errorOut, "identity preference key usage binary value was invalid")
         return nil
     }
-    guard validIssuersPointer == nil || jsonDataArray(fromCString: validIssuersPointer) != nil else {
+    guard validIssuersPointer == nil || valueDataArray(from: validIssuersPointer) != nil else {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "identity preference valid issuers JSON was invalid")
+        setError(errorOut, "identity preference valid issuers binary value was invalid")
         return nil
     }
 
-    let keyUsage = keyUsageArray(fromCString: keyUsagePointer)
-    let validIssuers = jsonDataArray(fromCString: validIssuersPointer)
+    let keyUsage = keyUsageArray(from: keyUsagePointer)
+    let validIssuers = valueDataArray(from: validIssuersPointer)
     guard let identity = SecIdentityCopyPreferred(
         name as CFString,
         keyUsage as CFArray?,
@@ -247,26 +248,26 @@ public func securityIdentityCopyPreferred(
 @_cdecl("security_identity_set_preferred")
 public func securityIdentitySetPreferred(
     _ identityPointer: UnsafeMutableRawPointer?,
-    _ namePointer: UnsafePointer<CChar>?,
-    _ keyUsagePointer: UnsafePointer<CChar>?,
+    _ namePointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ keyUsagePointer: UnsafePointer<SecurityBridgeValue>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
-    guard let name = stringFromCString(namePointer) else {
+    guard let name = stringFromBuffer(namePointer) else {
         setError(errorOut, "identity preference name is required")
         return errSecParam
     }
 
-    guard keyUsagePointer == nil || keyUsageArray(fromCString: keyUsagePointer) != nil else {
-        setError(errorOut, "identity preference key usage JSON was invalid")
+    guard keyUsagePointer == nil || keyUsageArray(from: keyUsagePointer) != nil else {
+        setError(errorOut, "identity preference key usage binary value was invalid")
         return errSecParam
     }
 
     let status = SecIdentitySetPreferred(
         identityFromPointer(identityPointer),
         name as CFString,
-        keyUsageArray(fromCString: keyUsagePointer) as CFArray?
+        keyUsageArray(from: keyUsagePointer) as CFArray?
     )
     if status != errSecSuccess {
         setError(errorOut, "SecIdentitySetPreferred failed: \(statusMessage(status))")
@@ -276,14 +277,14 @@ public func securityIdentitySetPreferred(
 
 @_cdecl("security_identity_copy_system_identity")
 public func securityIdentityCopySystemIdentity(
-    _ domainPointer: UnsafePointer<CChar>?,
+    _ domainPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let domain = stringFromCString(domainPointer) else {
+    guard let domain = stringFromBuffer(domainPointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "system identity domain is required")
         return nil
@@ -308,13 +309,13 @@ public func securityIdentityCopyActualDomain(_ identityPointer: UnsafeMutableRaw
 
 @_cdecl("security_identity_set_system_identity")
 public func securityIdentitySetSystemIdentity(
-    _ domainPointer: UnsafePointer<CChar>?,
+    _ domainPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ identityPointer: UnsafeMutableRawPointer?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
-    guard let domain = stringFromCString(domainPointer) else {
+    guard let domain = stringFromBuffer(domainPointer) else {
         setError(errorOut, "system identity domain is required")
         return errSecParam
     }

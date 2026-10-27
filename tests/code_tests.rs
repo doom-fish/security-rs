@@ -1,10 +1,10 @@
 use std::ffi::c_void;
 use std::process::{Child, Command};
 
+use security::Value;
 use security::{
     AuditToken, Code, CodeSigningFlags, CodeStatus, Requirement, SecurityError, StaticCode, Task,
 };
-use serde_json::json;
 
 extern "C" {
     static mach_task_self_: u32;
@@ -129,7 +129,10 @@ fn pid_lookup_never_reports_the_callers_own_task() -> security::Result<()> {
     let peer = Peer::spawn();
     let code = Code::guest_with_attributes(
         None,
-        Some(&json!({ "pid": peer.pid() })),
+        Some(&Value::dictionary([(
+            "pid",
+            Value::Integer(i64::from(peer.pid())),
+        )])),
         CodeSigningFlags::empty(),
     )?;
     assert_eq!(code.audit_token(), None);
@@ -170,12 +173,15 @@ fn audit_token_lookup_identifies_the_peer() -> security::Result<()> {
         Some("com.apple.sleep")
     );
 
-    let from_json = Code::guest_with_attributes(
+    let from_value = Code::guest_with_attributes(
         None,
-        Some(&json!({ "audit": token.to_bytes().to_vec() })),
+        Some(&Value::dictionary([(
+            "audit",
+            Value::Data(token.to_bytes().to_vec()),
+        )])),
         CodeSigningFlags::empty(),
     )?;
-    assert_eq!(from_json.audit_token(), Some(token));
+    assert_eq!(from_value.audit_token(), Some(token));
     Ok(())
 }
 

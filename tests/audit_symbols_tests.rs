@@ -3,12 +3,12 @@ mod common;
 use std::path::Path;
 use std::time::SystemTime;
 
+use security::Value;
 use security::{
     Authorization, AuthorizationOptions, Certificate, Cms, CmsCertificateChainMode, CmsDecoder,
     CmsDigestAlgorithm, CmsEncoder, CmsSignedAttributes, Code, CodeSigningFlags, Identity, Policy,
     PrivateKey, Requirement, StaticCode, Task, Trust, TrustOptions,
 };
-use serde_json::{json, Value};
 
 fn reference<T>(_value: T) {}
 
@@ -243,5 +243,5 @@ fn enum_and_flag_symbols_compile() {
     let _ = CmsCertificateChainMode::ChainWithRootOrFail;
     let _ = CmsDigestAlgorithm::Sha256;
     let _ = TrustOptions::ALLOW_EXPIRED | TrustOptions::IMPLICIT_ANCHORS;
-    let _ = json!({"pid": 1});
+    let _ = Value::dictionary([("pid", Value::Integer(1))]);
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SecurityBridgeABI
 
 private func genericPasswordQuery(account: String?, service: String) -> [CFString: Any] {
     var query: [CFString: Any] = [
@@ -38,7 +39,7 @@ public func securityAccessControlGetTypeID() -> UInt {
 
 @_cdecl("security_access_control_create")
 public func securityAccessControlCreate(
-    _ protectionPointer: UnsafePointer<CChar>?,
+    _ protectionPointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ flags: UInt64,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
@@ -46,7 +47,7 @@ public func securityAccessControlCreate(
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let protectionName = stringFromCString(protectionPointer),
+    guard let protectionName = stringFromBuffer(protectionPointer),
           let protection = accessControlProtection(protectionName)
     else {
         setStatus(statusOut, errSecParam)
@@ -87,12 +88,12 @@ private struct KeychainQueryOptions {
     var dataProtectionKeychain = false
 }
 
-private func keychainQueryOptions(_ pointer: UnsafePointer<CChar>?) -> KeychainQueryOptions? {
+private func keychainQueryOptions(_ pointer: UnsafePointer<SecurityBridgeValue>?) -> KeychainQueryOptions? {
     var options = KeychainQueryOptions()
     guard let pointer else {
         return options
     }
-    guard let object = jsonObject(fromCString: pointer) as? [String: Any] else {
+    guard let object = valueObject(from: pointer) as? [String: Any] else {
         return nil
     }
     if let value = object["accessibility"] {
@@ -153,15 +154,15 @@ private enum KeychainInputError: Error {
 }
 
 private func keychainInputs(
-    service servicePointer: UnsafePointer<CChar>?,
-    options optionsPointer: UnsafePointer<CChar>?,
+    service servicePointer: UnsafePointer<SecurityBridgeBuffer>?,
+    options optionsPointer: UnsafePointer<SecurityBridgeValue>?,
     authenticationContext authenticationContextPointer: UnsafeMutableRawPointer?
 ) throws -> (String, KeychainQueryOptions, NSObject?) {
-    guard let service = stringFromCString(servicePointer) else {
+    guard let service = stringFromBuffer(servicePointer) else {
         throw KeychainInputError.invalid("service is required")
     }
     guard let options = keychainQueryOptions(optionsPointer) else {
-        throw KeychainInputError.invalid("keychain options JSON was invalid")
+        throw KeychainInputError.invalid("keychain options binary value was invalid")
     }
     let authenticationContext = unbox(authenticationContextPointer, as: AuthenticationContextRecord.self)?.context
     guard authenticationContextPointer == nil || authenticationContext != nil else {
@@ -191,11 +192,11 @@ public func securityAuthenticationContextRetain(_ contextPointer: UnsafeMutableR
 
 @_cdecl("security_keychain_set_item")
 public func securityKeychainSetItem(
-    _ accountPointer: UnsafePointer<CChar>?,
-    _ servicePointer: UnsafePointer<CChar>?,
+    _ accountPointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ servicePointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ dataPointer: UnsafeRawPointer?,
     _ dataLength: Int,
-    _ optionsPointer: UnsafePointer<CChar>?,
+    _ optionsPointer: UnsafePointer<SecurityBridgeValue>?,
     _ accessControlPointer: UnsafeMutableRawPointer?,
     _ authenticationContextPointer: UnsafeMutableRawPointer?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
@@ -214,7 +215,7 @@ public func securityKeychainSetItem(
         return errSecParam
     }
     let (service, options, authenticationContext) = inputs
-    guard let account = stringFromCString(accountPointer), dataLength >= 0, dataPointer != nil || dataLength == 0 else {
+    guard let account = stringFromBuffer(accountPointer), dataLength >= 0, dataPointer != nil || dataLength == 0 else {
         setError(errorOut, "account and secret data are required")
         return errSecParam
     }
@@ -272,9 +273,9 @@ public func securityKeychainSetItem(
 
 @_cdecl("security_keychain_copy_item")
 public func securityKeychainCopyItem(
-    _ accountPointer: UnsafePointer<CChar>?,
-    _ servicePointer: UnsafePointer<CChar>?,
-    _ optionsPointer: UnsafePointer<CChar>?,
+    _ accountPointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ servicePointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ optionsPointer: UnsafePointer<SecurityBridgeValue>?,
     _ authenticationContextPointer: UnsafeMutableRawPointer?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
@@ -295,7 +296,7 @@ public func securityKeychainCopyItem(
         return nil
     }
     let (service, options, authenticationContext) = inputs
-    guard let account = stringFromCString(accountPointer) else {
+    guard let account = stringFromBuffer(accountPointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "account is required")
         return nil
@@ -329,9 +330,9 @@ public func securityKeychainCopyItem(
 
 @_cdecl("security_keychain_delete_item")
 public func securityKeychainDeleteItem(
-    _ accountPointer: UnsafePointer<CChar>?,
-    _ servicePointer: UnsafePointer<CChar>?,
-    _ optionsPointer: UnsafePointer<CChar>?,
+    _ accountPointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ servicePointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ optionsPointer: UnsafePointer<SecurityBridgeValue>?,
     _ authenticationContextPointer: UnsafeMutableRawPointer?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
@@ -349,7 +350,7 @@ public func securityKeychainDeleteItem(
         return errSecParam
     }
     let (service, options, authenticationContext) = inputs
-    guard let account = stringFromCString(accountPointer) else {
+    guard let account = stringFromBuffer(accountPointer) else {
         setError(errorOut, "account is required")
         return errSecParam
     }
@@ -371,8 +372,8 @@ public func securityKeychainDeleteItem(
 
 @_cdecl("security_keychain_list_accounts")
 public func securityKeychainListAccounts(
-    _ servicePointer: UnsafePointer<CChar>?,
-    _ optionsPointer: UnsafePointer<CChar>?,
+    _ servicePointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ optionsPointer: UnsafePointer<SecurityBridgeValue>?,
     _ authenticationContextPointer: UnsafeMutableRawPointer?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
@@ -406,7 +407,7 @@ public func securityKeychainListAccounts(
     var result: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &result)
     if status == errSecItemNotFound {
-        return jsonHandle([])
+        return valueHandle([])
     }
     guard status == errSecSuccess else {
         setStatus(statusOut, status)
@@ -422,5 +423,5 @@ public func securityKeychainListAccounts(
     }
 
     accounts = Array(Set(accounts)).sorted()
-    return jsonHandle(accounts)
+    return valueHandle(accounts)
 }

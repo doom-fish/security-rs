@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SecurityBridgeABI
 
 @_cdecl("security_certificate_from_der")
 public func securityCertificateFromDer(
@@ -30,7 +31,7 @@ public func securityCertificateFromDer(
 public func securityCertificateImportItem(
     _ dataPointer: UnsafeRawPointer?,
     _ dataLength: Int,
-    _ fileNamePointer: UnsafePointer<CChar>?,
+    _ fileNamePointer: UnsafePointer<SecurityBridgeBuffer>?,
     _ formatRawValue: UInt32,
     _ itemTypeRawValue: UInt32,
     _ statusOut: UnsafeMutablePointer<Int32>?,
@@ -48,7 +49,7 @@ public func securityCertificateImportItem(
         return nil
     }
 
-    let fileName = stringFromCString(fileNamePointer) as CFString?
+    let fileName = stringFromBuffer(fileNamePointer) as CFString?
     var items: CFArray?
     let status = SecItemImport(
         importedData as CFData,
@@ -185,7 +186,7 @@ public func securityCertificateCopyEmailAddresses(
     }
 
     let values = emailAddresses as? [String] ?? []
-    return jsonHandle(values)
+    return valueHandle(values)
 }
 
 @_cdecl("security_certificate_copy_normalized_subject_sequence")
@@ -266,7 +267,7 @@ public func securityCertificateCopyNotValidBefore(
 
     if #available(macOS 15.0, *) {
         if let date = SecCertificateCopyNotValidBeforeDate(certificate) as Date? {
-            return jsonHandle(date)
+            return valueHandle(date)
         }
         return nil
     }
@@ -293,7 +294,7 @@ public func securityCertificateCopyNotValidAfter(
 
     if #available(macOS 15.0, *) {
         if let date = SecCertificateCopyNotValidAfterDate(certificate) as Date? {
-            return jsonHandle(date)
+            return valueHandle(date)
         }
         return nil
     }
@@ -380,7 +381,7 @@ public func securityCertificateAddToKeychain(
 @_cdecl("security_certificate_copy_values")
 public func securityCertificateCopyValues(
     _ certificatePointer: UnsafeMutableRawPointer?,
-    _ keysPointer: UnsafePointer<CChar>?,
+    _ keysPointer: UnsafePointer<SecurityBridgeValue>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
@@ -392,23 +393,23 @@ public func securityCertificateCopyValues(
         setError(errorOut, "certificate handle is required")
         return nil
     }
-    guard keysPointer == nil || jsonStringArray(fromCString: keysPointer) != nil else {
+    guard keysPointer == nil || valueStringArray(from: keysPointer) != nil else {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "certificate OID key JSON was invalid")
+        setError(errorOut, "certificate OID key binary value was invalid")
         return nil
     }
 
     var error: Unmanaged<CFError>?
     guard let values = SecCertificateCopyValues(
         certificate,
-        jsonStringArray(fromCString: keysPointer) as CFArray?,
+        valueStringArray(from: keysPointer) as CFArray?,
         &error
     ) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, error)
         return nil
     }
-    return jsonHandle(values)
+    return valueHandle(values)
 }
 
 @_cdecl("security_certificate_copy_long_description")
@@ -461,26 +462,26 @@ public func securityCertificateCopyShortDescription(
 
 @_cdecl("security_certificate_copy_preferred")
 public func securityCertificateCopyPreferred(
-    _ namePointer: UnsafePointer<CChar>?,
-    _ keyUsagePointer: UnsafePointer<CChar>?,
+    _ namePointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ keyUsagePointer: UnsafePointer<SecurityBridgeValue>?,
     _ statusOut: UnsafeMutablePointer<Int32>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> UnsafeMutableRawPointer? {
     clearError(errorOut)
     setStatus(statusOut, errSecSuccess)
 
-    guard let name = stringFromCString(namePointer) else {
+    guard let name = stringFromBuffer(namePointer) else {
         setStatus(statusOut, errSecParam)
         setError(errorOut, "certificate preference name is required")
         return nil
     }
-    guard keyUsagePointer == nil || keyUsageArray(fromCString: keyUsagePointer) != nil else {
+    guard keyUsagePointer == nil || keyUsageArray(from: keyUsagePointer) != nil else {
         setStatus(statusOut, errSecParam)
-        setError(errorOut, "certificate preference key usage JSON was invalid")
+        setError(errorOut, "certificate preference key usage binary value was invalid")
         return nil
     }
 
-    guard let certificate = SecCertificateCopyPreferred(name as CFString, keyUsageArray(fromCString: keyUsagePointer) as CFArray?) else {
+    guard let certificate = SecCertificateCopyPreferred(name as CFString, keyUsageArray(from: keyUsagePointer) as CFArray?) else {
         return nil
     }
     return retain(certificate)
@@ -489,25 +490,25 @@ public func securityCertificateCopyPreferred(
 @_cdecl("security_certificate_set_preferred")
 public func securityCertificateSetPreferred(
     _ certificatePointer: UnsafeMutableRawPointer?,
-    _ namePointer: UnsafePointer<CChar>?,
-    _ keyUsagePointer: UnsafePointer<CChar>?,
+    _ namePointer: UnsafePointer<SecurityBridgeBuffer>?,
+    _ keyUsagePointer: UnsafePointer<SecurityBridgeValue>?,
     _ errorOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>?
 ) -> Int32 {
     clearError(errorOut)
 
-    guard let name = stringFromCString(namePointer) else {
+    guard let name = stringFromBuffer(namePointer) else {
         setError(errorOut, "certificate preference name is required")
         return errSecParam
     }
-    guard keyUsagePointer == nil || keyUsageArray(fromCString: keyUsagePointer) != nil else {
-        setError(errorOut, "certificate preference key usage JSON was invalid")
+    guard keyUsagePointer == nil || keyUsageArray(from: keyUsagePointer) != nil else {
+        setError(errorOut, "certificate preference key usage binary value was invalid")
         return errSecParam
     }
 
     let status = SecCertificateSetPreferred(
         unbox(certificatePointer, as: SecCertificate.self),
         name as CFString,
-        keyUsageArray(fromCString: keyUsagePointer) as CFArray?
+        keyUsageArray(from: keyUsagePointer) as CFArray?
     )
     if status != errSecSuccess {
         setError(errorOut, "SecCertificateSetPreferred failed: \(statusMessage(status))")
